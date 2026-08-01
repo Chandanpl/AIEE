@@ -1,0 +1,17 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Environment
+.env
+
+# Generated datasets
+data/raw/*.csv
+data/processed/*.csv
+
+# Cloned repositories
+repositories/
