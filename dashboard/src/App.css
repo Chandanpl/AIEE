@@ -17,9 +17,11 @@ input {
 .app {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 50% 0%,
+    radial-gradient(
+      circle at 50% 0%,
       rgba(80, 110, 255, 0.15),
-      transparent 35%),
+      transparent 35%
+    ),
     #080b12;
 }
 
@@ -55,9 +57,11 @@ input {
 
   border-radius: 10px;
 
-  background: linear-gradient(135deg,
-      #5b6cff,
-      #8b5cf6);
+  background: linear-gradient(
+    135deg,
+    #5b6cff,
+    #8b5cf6
+  );
 
   font-weight: 800;
 }
@@ -133,9 +137,11 @@ main {
 .hero h1 span {
   display: block;
 
-  background: linear-gradient(90deg,
-      #6575ff,
-      #a879ff);
+  background: linear-gradient(
+    90deg,
+    #6575ff,
+    #a879ff
+  );
 
   -webkit-background-clip: text;
   color: transparent;
@@ -245,9 +251,11 @@ main {
 
   cursor: pointer;
 
-  background: linear-gradient(135deg,
-      #596bff,
-      #825cf6);
+  background: linear-gradient(
+    135deg,
+    #596bff,
+    #825cf6
+  );
 }
 
 .input-area button:disabled {
@@ -441,7 +449,7 @@ main {
   font-size: 12px;
 }
 
-.panel-header>span {
+.panel-header > span {
   color: #747e91;
 
   font-size: 12px;
