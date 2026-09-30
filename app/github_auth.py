@@ -1,11 +1,16 @@
 import os
 import secrets
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy import select
+
+from app.database import SessionLocal
+from app.models_db import User, Session as DBSession
 
 
 # ============================================================
@@ -32,49 +37,26 @@ router = APIRouter(
 CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 
-
-# IMPORTANT:
-# Use 127.0.0.1 consistently during local development.
-#
-# This URL MUST be the same as the callback URL configured
-# inside your GitHub OAuth App.
-# ============================================================
-
 REDIRECT_URI = os.getenv(
-    "GITHUB_REDIRECT_URI"
+    "GITHUB_REDIRECT_URI",
+    "http://127.0.0.1:8000/auth/github/callback"
 )
-
-if not REDIRECT_URI:
-    REDIRECT_URI = (
-        "http://127.0.0.1:8000"
-        "/auth/github/callback"
-    )
-
-
-# ============================================================
-# FRONTEND URL
-# ============================================================
 
 FRONTEND_URL = os.getenv(
-    "FRONTEND_URL"
+    "FRONTEND_URL",
+    "http://127.0.0.1:5173"
 )
 
-if not FRONTEND_URL:
-    FRONTEND_URL = (
-        "http://127.0.0.1:5173"
-    )
-
 
 # ============================================================
-# TEMPORARY LOCAL DEVELOPMENT STORAGE
+# TEMPORARY OAUTH STATE STORAGE
 # ============================================================
 
-# OAuth state
-oauth_states = {}
+# OAuth state is temporary and only used during login.
+# For production with multiple backend instances,
+# move this to Redis or another shared store.
 
-
-# Session ID -> GitHub user information
-github_sessions = {}
+oauth_states = set()
 
 
 # ============================================================
@@ -119,65 +101,17 @@ async def github_login():
     print("GITHUB LOGIN REQUEST")
     print("=" * 60)
 
-
-    # --------------------------------------------------------
-    # Validate Client ID
-    # --------------------------------------------------------
-
     if not CLIENT_ID:
-
-        print(
-            "ERROR: GITHUB_CLIENT_ID is missing."
-        )
-
         raise HTTPException(
-
             status_code=500,
-
-            detail=(
-                "GITHUB_CLIENT_ID is not configured."
-            )
-
+            detail="GITHUB_CLIENT_ID is not configured."
         )
-
-
-    # --------------------------------------------------------
-    # Validate Client Secret
-    # --------------------------------------------------------
 
     if not CLIENT_SECRET:
-
-        print(
-            "ERROR: GITHUB_CLIENT_SECRET is missing."
-        )
-
         raise HTTPException(
-
             status_code=500,
-
-            detail=(
-                "GITHUB_CLIENT_SECRET is not configured."
-            )
-
+            detail="GITHUB_CLIENT_SECRET is not configured."
         )
-
-
-    # --------------------------------------------------------
-    # Validate Redirect URI
-    # --------------------------------------------------------
-
-    if not REDIRECT_URI:
-
-        raise HTTPException(
-
-            status_code=500,
-
-            detail=(
-                "GITHUB_REDIRECT_URI is not configured."
-            )
-
-        )
-
 
     # --------------------------------------------------------
     # Create OAuth state
@@ -185,67 +119,34 @@ async def github_login():
 
     state = secrets.token_urlsafe(32)
 
-    oauth_states[state] = True
+    oauth_states.add(state)
 
-
-    print(
-        "OAuth state created."
-    )
-
-    print(
-        "Redirect URI:",
-        REDIRECT_URI
-    )
-
+    print("OAuth state created.")
+    print("Redirect URI:", REDIRECT_URI)
 
     # --------------------------------------------------------
     # GitHub OAuth parameters
     # --------------------------------------------------------
 
     params = {
-
-        "client_id":
-            CLIENT_ID,
-
-        "redirect_uri":
-            REDIRECT_URI,
-
-        "state":
-            state,
-
-        "scope":
-            "read:user repo"
-
+        "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,
+        "state": state,
+        "scope": "read:user repo",
     }
-
-
-    # --------------------------------------------------------
-    # Create GitHub authorization URL
-    # --------------------------------------------------------
 
     github_url = (
         "https://github.com/login/oauth/authorize?"
         + urlencode(params)
     )
 
-
-    print(
-        "GitHub OAuth URL generated."
-    )
-
-    print(
-        "Redirecting user to GitHub..."
-    )
-
+    print("GitHub OAuth URL generated.")
+    print("Redirecting user to GitHub...")
     print("=" * 60 + "\n")
 
-
     return RedirectResponse(
-
         url=github_url,
-
         status_code=307
-
     )
 
 
@@ -263,87 +164,25 @@ async def github_callback(
     print("GITHUB OAUTH CALLBACK")
     print("=" * 60)
 
-
     # --------------------------------------------------------
     # Validate OAuth state
     # --------------------------------------------------------
 
     if not state:
-
-        print(
-            "ERROR: OAuth state missing."
-        )
-
         raise HTTPException(
-
             status_code=400,
-
             detail="OAuth state is missing."
-
         )
-
 
     if state not in oauth_states:
-
-        print(
-            "ERROR: Invalid OAuth state."
-        )
-
         raise HTTPException(
-
             status_code=400,
-
-            detail=(
-                "Invalid or expired OAuth state."
-            )
-
+            detail="Invalid or expired OAuth state."
         )
 
+    oauth_states.discard(state)
 
-    # --------------------------------------------------------
-    # Remove state after successful validation
-    # --------------------------------------------------------
-
-    oauth_states.pop(
-        state,
-        None
-    )
-
-
-    print(
-        "OAuth state validated successfully."
-    )
-
-
-    # --------------------------------------------------------
-    # Validate credentials
-    # --------------------------------------------------------
-
-    if not CLIENT_ID:
-
-        raise HTTPException(
-
-            status_code=500,
-
-            detail=(
-                "GITHUB_CLIENT_ID is not configured."
-            )
-
-        )
-
-
-    if not CLIENT_SECRET:
-
-        raise HTTPException(
-
-            status_code=500,
-
-            detail=(
-                "GITHUB_CLIENT_SECRET is not configured."
-            )
-
-        )
-
+    print("OAuth state validated successfully.")
 
     # ========================================================
     # EXCHANGE CODE FOR ACCESS TOKEN
@@ -353,7 +192,6 @@ async def github_callback(
         "Exchanging GitHub authorization code..."
     )
 
-
     try:
 
         async with httpx.AsyncClient(
@@ -361,32 +199,18 @@ async def github_callback(
         ) as client:
 
             token_response = await client.post(
-
                 "https://github.com/login/oauth/access_token",
 
                 data={
-
-                    "client_id":
-                        CLIENT_ID,
-
-                    "client_secret":
-                        CLIENT_SECRET,
-
-                    "code":
-                        code,
-
-                    "redirect_uri":
-                        REDIRECT_URI
-
+                    "client_id": CLIENT_ID,
+                    "client_secret": CLIENT_SECRET,
+                    "code": code,
+                    "redirect_uri": REDIRECT_URI,
                 },
 
                 headers={
-
-                    "Accept":
-                        "application/json"
-
+                    "Accept": "application/json"
                 }
-
             )
 
     except Exception as e:
@@ -397,98 +221,46 @@ async def github_callback(
         )
 
         raise HTTPException(
-
             status_code=500,
-
-            detail=(
-                "Could not connect to GitHub."
-            )
-
+            detail="Could not connect to GitHub."
         )
-
-
-    # --------------------------------------------------------
-    # Check token response
-    # --------------------------------------------------------
 
     if token_response.status_code != 200:
 
         print(
-            "GitHub token exchange failed."
-        )
-
-        print(
-            "Status:",
+            "GitHub token exchange failed:",
             token_response.status_code
         )
 
-        print(
-            "Response:",
-            token_response.text
-        )
-
         raise HTTPException(
-
             status_code=400,
-
-            detail=(
-                "GitHub token exchange failed."
-            )
-
+            detail="GitHub token exchange failed."
         )
 
-
-    token_data = (
-        token_response.json()
-    )
-
+    token_data = token_response.json()
 
     print(
         "GitHub token response received."
     )
 
-
-    # --------------------------------------------------------
-    # Get access token
-    # --------------------------------------------------------
-
-    access_token = (
-        token_data.get(
-            "access_token"
-        )
+    access_token = token_data.get(
+        "access_token"
     )
-
 
     if not access_token:
 
-        print(
-            "GitHub token was not received."
-        )
-
-        print(
-            "Token response:",
-            token_data
-        )
-
         raise HTTPException(
-
             status_code=400,
-
             detail=(
-                token_data.get(
-                    "error_description"
-                )
+                token_data.get("error_description")
                 or
                 "GitHub access token not received."
             )
-
         )
-
 
     print(
         "GitHub access token received successfully."
     )
-
 
     # ========================================================
     # GET GITHUB USER
@@ -498,7 +270,6 @@ async def github_callback(
         "Requesting GitHub user information..."
     )
 
-
     try:
 
         async with httpx.AsyncClient(
@@ -506,11 +277,9 @@ async def github_callback(
         ) as client:
 
             user_response = await client.get(
-
                 "https://api.github.com/user",
 
                 headers={
-
                     "Authorization":
                         f"Bearer {access_token}",
 
@@ -518,10 +287,8 @@ async def github_callback(
                         "application/vnd.github+json",
 
                     "X-GitHub-Api-Version":
-                        "2022-11-28"
-
+                        "2022-11-28",
                 }
-
             )
 
     except Exception as e:
@@ -532,98 +299,184 @@ async def github_callback(
         )
 
         raise HTTPException(
-
             status_code=500,
-
-            detail=(
-                "Could not retrieve GitHub user."
-            )
-
+            detail="Could not retrieve GitHub user."
         )
-
-
-    # --------------------------------------------------------
-    # Check GitHub user response
-    # --------------------------------------------------------
 
     if user_response.status_code != 200:
 
         print(
-            "GitHub user request failed."
-        )
-
-        print(
-            "Status:",
+            "GitHub user request failed:",
             user_response.status_code
         )
 
-        print(
-            "Response:",
-            user_response.text
-        )
-
         raise HTTPException(
-
             status_code=400,
-
-            detail=(
-                "Could not retrieve GitHub user."
-            )
-
+            detail="Could not retrieve GitHub user."
         )
 
+    user_data = user_response.json()
 
-    user = user_response.json()
+    github_id = str(
+        user_data.get("id")
+    )
 
-
-    username = user.get(
+    username = user_data.get(
         "login"
     )
 
-    name = user.get(
+    name = user_data.get(
         "name"
     )
 
+    if not github_id or github_id == "None":
+
+        raise HTTPException(
+            status_code=400,
+            detail="GitHub user ID could not be determined."
+        )
 
     if not username:
 
         raise HTTPException(
-
             status_code=400,
-
-            detail=(
-                "GitHub username could not be determined."
-            )
-
+            detail="GitHub username could not be determined."
         )
-
 
     print(
         "GitHub user:",
         username
     )
 
+    # ========================================================
+    # DATABASE
+    # ========================================================
+
+    db = SessionLocal()
+
+    try:
+
+        # ----------------------------------------------------
+        # Find existing user
+        # ----------------------------------------------------
+
+        result = db.execute(
+            select(User).where(
+                User.github_id == github_id
+            )
+        )
+
+        db_user = result.scalar_one_or_none()
+
+        # ----------------------------------------------------
+        # Create or update user
+        # ----------------------------------------------------
+
+        if db_user is None:
+
+            db_user = User(
+                github_id=github_id,
+                github_username=username,
+                name=name or username,
+            )
+
+            db.add(db_user)
+
+            db.commit()
+
+            db.refresh(db_user)
+
+            print(
+                "New GitHub user created in PostgreSQL."
+            )
+
+        else:
+
+            db_user.github_username = username
+            db_user.name = name or username
+
+            db.commit()
+
+            db.refresh(db_user)
+
+            print(
+                "Existing GitHub user updated."
+            )
+
+        # ----------------------------------------------------
+        # Optional cleanup:
+        # Remove previous sessions for this user.
+        #
+        # This keeps one active login session per browser/user
+        # during local development.
+        # ----------------------------------------------------
+
+        old_sessions = db.execute(
+            select(DBSession).where(
+                DBSession.user_id == db_user.id
+            )
+        ).scalars().all()
+
+        for old_session in old_sessions:
+            db.delete(old_session)
+
+        db.commit()
+
+        # ----------------------------------------------------
+        # Create new session
+        # ----------------------------------------------------
+
+        session_id = secrets.token_urlsafe(32)
+
+        now = datetime.now(timezone.utc)
+
+        db_session = DBSession(
+            id=session_id,
+            user_id=db_user.id,
+            access_token=access_token,
+            created_at=now,
+            expires_at=now + timedelta(hours=1),
+        )
+
+        db.add(db_session)
+
+        db.commit()
+
+        print(
+            "Session stored successfully in PostgreSQL."
+        )
+
+        print(
+            "User ID:",
+            db_user.id
+        )
+
+        print(
+            "Session ID created:",
+            bool(session_id)
+        )
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "Database error:",
+            str(e)
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Could not create AIEE database session."
+        )
+
+    finally:
+
+        db.close()
 
     # ========================================================
-    # CREATE AIEE SESSION
+    # SUCCESS
     # ========================================================
-
-    session_id = secrets.token_urlsafe(32)
-
-
-    github_sessions[session_id] = {
-
-        "access_token":
-            access_token,
-
-        "username":
-            username,
-
-        "name":
-            name or username
-
-    }
-
 
     print("\n" + "=" * 60)
     print("GITHUB AUTHENTICATION SUCCESSFUL")
@@ -640,53 +493,34 @@ async def github_callback(
     )
 
     print(
-        "Session ID:",
-        session_id
-    )
-
-    print(
-        "Active sessions:",
-        len(github_sessions)
+        "PostgreSQL session created:",
+        True
     )
 
     print("=" * 60)
-
 
     # ========================================================
     # REDIRECT TO FRONTEND
     # ========================================================
 
     response = RedirectResponse(
-
         url=FRONTEND_URL,
-
         status_code=303
-
     )
 
-
     # ========================================================
-    # CREATE SESSION COOKIE
+    # SESSION COOKIE
     # ========================================================
 
     response.set_cookie(
-
         key="aiee_session",
-
         value=session_id,
-
         httponly=True,
-
         samesite="lax",
-
         secure=False,
-
         max_age=3600,
-
-        path="/"
-
+        path="/",
     )
-
 
     print("\n" + "=" * 60)
     print("AIEE SESSION COOKIE CREATED")
@@ -709,7 +543,6 @@ async def github_callback(
 
     print("=" * 60 + "\n")
 
-
     return response
 
 
@@ -726,7 +559,6 @@ async def github_me(
         "aiee_session"
     )
 
-
     print("\n" + "=" * 60)
     print("GITHUB SESSION CHECK")
     print("=" * 60)
@@ -735,16 +567,6 @@ async def github_me(
         "Cookie received:",
         bool(session_id)
     )
-
-    print(
-        "Session ID:",
-        session_id
-    )
-
-
-    # --------------------------------------------------------
-    # No cookie
-    # --------------------------------------------------------
 
     if not session_id:
 
@@ -755,82 +577,105 @@ async def github_me(
         print("=" * 60)
 
         return {
-
-            "authenticated":
-                False,
-
-            "github_user":
-                None,
-
-            "name":
-                None
-
+            "authenticated": False,
+            "github_user": None,
+            "name": None,
         }
 
+    db = SessionLocal()
 
-    # --------------------------------------------------------
-    # Find session
-    # --------------------------------------------------------
+    try:
 
-    session = github_sessions.get(
-        session_id
-    )
+        result = db.execute(
+            select(DBSession).where(
+                DBSession.id == session_id
+            )
+        )
 
+        db_session = result.scalar_one_or_none()
 
-    if not session:
+        if db_session is None:
+
+            print(
+                "RESULT: SESSION NOT FOUND"
+            )
+
+            return {
+                "authenticated": False,
+                "github_user": None,
+                "name": None,
+            }
+
+        # ----------------------------------------------------
+        # Check expiration
+        # ----------------------------------------------------
+
+        now = datetime.now(timezone.utc)
+
+        expires_at = db_session.expires_at
+
+        if expires_at is not None:
+
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(
+                    tzinfo=timezone.utc
+                )
+
+            if expires_at <= now:
+
+                print(
+                    "RESULT: SESSION EXPIRED"
+                )
+
+                db.delete(db_session)
+                db.commit()
+
+                return {
+                    "authenticated": False,
+                    "github_user": None,
+                    "name": None,
+                }
+
+        # ----------------------------------------------------
+        # Get user
+        # ----------------------------------------------------
+
+        db_user = db_session.user
+
+        if db_user is None:
+
+            print(
+                "RESULT: USER NOT FOUND"
+            )
+
+            return {
+                "authenticated": False,
+                "github_user": None,
+                "name": None,
+            }
 
         print(
-            "RESULT: SESSION NOT FOUND"
+            "RESULT: AUTHENTICATED"
+        )
+
+        print(
+            "GitHub user:",
+            db_user.github_username
         )
 
         print("=" * 60)
 
         return {
-
-            "authenticated":
-                False,
-
+            "authenticated": True,
             "github_user":
-                None,
-
+                db_user.github_username,
             "name":
-                None
-
+                db_user.name or db_user.github_username,
         }
 
+    finally:
 
-    # --------------------------------------------------------
-    # Authenticated
-    # --------------------------------------------------------
-
-    print(
-        "RESULT: AUTHENTICATED"
-    )
-
-    print(
-        "GitHub user:",
-        session.get("username")
-    )
-
-    print("=" * 60)
-
-
-    return {
-
-        "authenticated":
-            True,
-
-        "github_user":
-            session.get(
-                "username"
-            ),
-
-        "name":
-            session.get(
-                "name"
-            )
-
-    }
+        db.close()
 
 
 # ============================================================
@@ -846,64 +691,66 @@ async def github_logout(
         "aiee_session"
     )
 
-
     print("\n" + "=" * 60)
     print("GITHUB LOGOUT")
     print("=" * 60)
 
     print(
-        "Session received:",
-        session_id
+        "Session exists:",
+        bool(session_id)
     )
-
-
-    # --------------------------------------------------------
-    # Remove server-side session
-    # --------------------------------------------------------
 
     if session_id:
 
-        github_sessions.pop(
-            session_id,
-            None
-        )
+        db = SessionLocal()
 
-        print(
-            "Server-side session removed."
-        )
+        try:
 
+            result = db.execute(
+                select(DBSession).where(
+                    DBSession.id == session_id
+                )
+            )
 
-    # --------------------------------------------------------
-    # Redirect to frontend
-    # --------------------------------------------------------
+            db_session = result.scalar_one_or_none()
+
+            if db_session:
+
+                db.delete(db_session)
+
+                db.commit()
+
+                print(
+                    "PostgreSQL session removed."
+                )
+
+        except Exception as e:
+
+            db.rollback()
+
+            print(
+                "Logout database error:",
+                str(e)
+            )
+
+        finally:
+
+            db.close()
 
     response = RedirectResponse(
-
         url=FRONTEND_URL,
-
         status_code=303
-
     )
-
-
-    # --------------------------------------------------------
-    # Delete cookie
-    # --------------------------------------------------------
 
     response.delete_cookie(
-
         key="aiee_session",
-
         path="/"
-
     )
-
 
     print(
         "Browser session cookie deleted."
     )
 
     print("=" * 60 + "\n")
-
 
     return response

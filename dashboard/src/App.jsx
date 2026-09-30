@@ -1,282 +1,219 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./App.css";
+import chandanPhoto from "./assets/chandan.jpeg";
+import ProfileMenu from "./components/ProfileMenu";
+import ProfileModal from "./components/ProfileModal";
+import SettingsModal from "./components/SettingsModal";
+import LegalModal from "./components/LegalModal";
 
-// ============================================================
-// AIEE BACKEND
-// ============================================================
+const API_BASE_URL = "http://127.0.0.1:8000";
 
-const API_URL = "http://127.0.0.1:8000";
+const GITHUB_LOGIN_URL =
+  `${API_BASE_URL}/auth/github/login`;
 
 function App() {
   const [repo, setRepo] = useState("");
+
   const [loading, setLoading] = useState(false);
+
   const [result, setResult] = useState(null);
+
   const [error, setError] = useState("");
 
-  // ============================================================
-  // GITHUB AUTHENTICATION STATE
-  // ============================================================
+  const [authenticated, setAuthenticated] =
+    useState(false);
 
-  const [authenticated, setAuthenticated] = useState(false);
-  const [githubUser, setGithubUser] = useState("");
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [loginLoading, setLoginLoading] = useState(false);
+  const [githubUser, setGithubUser] =
+    useState("");
 
-  // ============================================================
-  // CHECK GITHUB AUTHENTICATION
-  // ============================================================
+  const [authLoading, setAuthLoading] =
+    useState(true);
 
-  const checkAuthentication = async () => {
+  // Profile state with localStorage persistence
+  const [profile, setProfile] = useState(() => {
     try {
-      console.log("======================================");
-      console.log("Checking GitHub authentication...");
-      console.log("Auth URL:", `${API_URL}/auth/status`);
-      console.log("======================================");
-
-      const response = await fetch(
-        `${API_URL}/auth/status`,
-        {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
-
-      console.log(
-        "Auth status response:",
-        response.status
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `Authentication request failed: ${response.status}`
-        );
+      const saved = localStorage.getItem("aiee_user_profile");
+      if (saved) {
+        return JSON.parse(saved);
       }
+    } catch (e) {
+      console.error("Failed to load profile from localStorage:", e);
+    }
+    return {
+      displayName: "Chandan P L",
+      photoUrl: chandanPhoto,
+    };
+  });
 
-      const data = await response.json();
+  // Theme state with localStorage persistence
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("aiee_theme") || "dark";
+  });
 
-      console.log(
-        "GitHub authentication response:",
-        data
-      );
+  // Modals & Menu visibility
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [legalModalState, setLegalModalState] = useState({
+    isOpen: false,
+    type: "terms",
+  });
 
-      if (data.authenticated === true) {
-        setAuthenticated(true);
+  const profileButtonRef = useRef(null);
 
-        setGithubUser(
-          data.github_user ||
-          data.name ||
-          "GitHub User"
-        );
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("aiee_theme", theme);
+  }, [theme]);
 
-        console.log(
-          "✅ GitHub authentication successful."
-        );
-      } else {
-        setAuthenticated(false);
-        setGithubUser("");
-
-        console.log(
-          "❌ GitHub authentication not detected."
-        );
-      }
-
-      return data;
-
-    } catch (err) {
-      console.error(
-        "Authentication check failed:",
-        err
-      );
-
-      setAuthenticated(false);
-      setGithubUser("");
-
-      return {
-        authenticated: false,
-      };
-
-    } finally {
-      setCheckingAuth(false);
+  const handleSaveProfile = (newProfile) => {
+    setProfile(newProfile);
+    try {
+      localStorage.setItem("aiee_user_profile", JSON.stringify(newProfile));
+    } catch (e) {
+      console.error("Failed to save profile to localStorage:", e);
     }
   };
 
-  // ============================================================
-  // CHECK AUTH WHEN PAGE LOADS
-  // ============================================================
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
+  };
+
+
+  // =========================================================
+  // CHECK GITHUB AUTHENTICATION
+  // =========================================================
 
   useEffect(() => {
-    checkAuthentication();
-  }, []);
 
-  // ============================================================
-  // GITHUB LOGIN
-  // ============================================================
+    const checkAuthentication = async () => {
 
-  const loginWithGitHub = async () => {
-    if (loginLoading) {
-      return;
-    }
+      try {
 
-    setError("");
-    setLoginLoading(true);
-
-    const loginURL =
-      `${API_URL}/auth/github/login`;
-
-    console.log("======================================");
-    console.log("GITHUB LOGIN BUTTON CLICKED");
-    console.log("Login URL:", loginURL);
-    console.log("======================================");
-
-    try {
-      // --------------------------------------------------------
-      // First verify that FastAPI is reachable.
-      // --------------------------------------------------------
-
-      const healthResponse = await fetch(
-        `${API_URL}/`,
-        {
-          method: "GET",
-          cache: "no-store",
-        }
-      );
-
-      console.log(
-        "Backend health status:",
-        healthResponse.status
-      );
-
-      if (!healthResponse.ok) {
-        throw new Error(
-          "AIEE backend is not responding correctly."
+        const response = await fetch(
+          `${API_BASE_URL}/auth/status`,
+          {
+            credentials: "include",
+          }
         );
+
+        const data = await response.json();
+
+        if (data.authenticated) {
+
+          setAuthenticated(true);
+
+          setGithubUser(
+            data.github_user ||
+            data.name ||
+            ""
+          );
+
+        } else {
+
+          setAuthenticated(false);
+
+          setGithubUser("");
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Authentication check failed:",
+          error
+        );
+
+        setAuthenticated(false);
+
+        setGithubUser("");
+
+      } finally {
+
+        setAuthLoading(false);
+
       }
 
-      console.log(
-        "Backend is reachable."
-      );
+    };
 
-      // --------------------------------------------------------
-      // Redirect browser to GitHub OAuth endpoint.
-      // --------------------------------------------------------
+    checkAuthentication();
 
-      console.log(
-        "Redirecting to:",
-        loginURL
-      );
+  }, []);
 
-      window.location.assign(
-        loginURL
-      );
 
-    } catch (err) {
-      console.error(
-        "GitHub login failed:",
-        err
-      );
+  // =========================================================
+  // GITHUB LOGIN
+  // =========================================================
 
-      setLoginLoading(false);
+  const loginWithGitHub = () => {
 
-      setError(
-        "Cannot connect to AIEE backend. " +
-        "Make sure FastAPI is running on port 8000."
-      );
-    }
+    window.location.href =
+      GITHUB_LOGIN_URL;
+
   };
 
-  // ============================================================
-  // LOGOUT
-  // ============================================================
 
-  const logoutFromGitHub = async () => {
+  // =========================================================
+  // GITHUB LOGOUT
+  // =========================================================
+
+  const logout = async () => {
+
     try {
-      console.log(
-        "Logging out from GitHub..."
-      );
 
-      const response = await fetch(
-        `${API_URL}/auth/github/logout`,
+      await fetch(
+        `${API_BASE_URL}/auth/github/logout`,
         {
           method: "POST",
           credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
         }
       );
 
-      console.log(
-        "Logout response:",
-        response.status
-      );
+    } catch (error) {
 
-      if (!response.ok) {
-        console.error(
-          "Logout request failed:",
-          response.status
-        );
-      }
-
-    } catch (err) {
       console.error(
         "Logout failed:",
-        err
+        error
       );
+
     }
 
     setAuthenticated(false);
+
     setGithubUser("");
+
     setResult(null);
-    setRepo("");
-    setError("");
-    setLoginLoading(false);
 
-    // ----------------------------------------------------------
-    // Verify logout state
-    // ----------------------------------------------------------
-
-    setTimeout(() => {
-      checkAuthentication();
-    }, 100);
   };
 
-  // ============================================================
+
+  // =========================================================
   // ANALYZE REPOSITORY
-  // ============================================================
+  // =========================================================
 
   const analyzeRepository = async () => {
 
-    // ----------------------------------------------------------
-    // Authentication check
-    // ----------------------------------------------------------
+    setError("");
+
+    // -------------------------------------------------------
+    // Check authentication
+    // -------------------------------------------------------
 
     if (!authenticated) {
 
       setError(
-        "Please login with GitHub first."
+        "Please login with GitHub before analyzing a repository."
       );
 
-      const authResult =
-        await checkAuthentication();
-
-      if (
-        authResult &&
-        authResult.authenticated === true
-      ) {
-        setError("");
-        setAuthenticated(true);
-        return;
-      }
-
       return;
+
     }
 
-    // ----------------------------------------------------------
-    // Repository validation
-    // ----------------------------------------------------------
+    // -------------------------------------------------------
+    // Check repository URL
+    // -------------------------------------------------------
 
     if (!repo.trim()) {
 
@@ -285,68 +222,36 @@ function App() {
       );
 
       return;
-    }
 
-    // ----------------------------------------------------------
-    // Basic GitHub URL validation
-    // ----------------------------------------------------------
-
-    if (!repo.includes("github.com/")) {
-
-      setError(
-        "Please enter a valid GitHub repository URL."
-      );
-
-      return;
     }
 
     setLoading(true);
-    setError("");
+
     setResult(null);
 
     try {
 
       const response = await fetch(
-        `${API_URL}/analyze?repo=${encodeURIComponent(
+        `${API_BASE_URL}/analyze?repo=${encodeURIComponent(
           repo.trim()
         )}`,
         {
           method: "POST",
+
           credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
         }
       );
 
-      const data = await response.json();
-
-      console.log(
-        "Repository analysis response:",
-        data
-      );
+      const data =
+        await response.json();
 
       if (!response.ok) {
-
-        // ------------------------------------------------------
-        // If backend says authentication expired
-        // ------------------------------------------------------
-
-        if (
-          response.status === 401
-        ) {
-          setAuthenticated(false);
-          setGithubUser("");
-
-          throw new Error(
-            "GitHub session expired. Please login again."
-          );
-        }
 
         throw new Error(
           data.detail ||
           "Repository analysis failed."
         );
+
       }
 
       setResult(data);
@@ -354,218 +259,332 @@ function App() {
     } catch (err) {
 
       console.error(
-        "Repository analysis failed:",
+        "AIEE analysis error:",
         err
       );
 
       setError(
         err.message ||
-        "Repository analysis failed."
+        "Unable to connect to the AIEE backend."
       );
 
     } finally {
 
       setLoading(false);
+
     }
+
   };
 
-  // ============================================================
-  // AUTHENTICATION LOADING
-  // ============================================================
 
-  if (checkingAuth) {
+  // =========================================================
+  // RISK CLASS
+  // =========================================================
 
-    return (
-      <div className="app">
+  const getRiskClass = (risk) => {
 
-        <div className="loading-card">
+    if (risk === "HIGH") {
+      return "risk-high";
+    }
 
-          <div className="spinner"></div>
+    if (risk === "MEDIUM") {
+      return "risk-medium";
+    }
 
-          <h3>
-            Checking GitHub authentication...
-          </h3>
+    return "risk-low";
 
-          <p>
-            Connecting to AIEE authentication service
-          </p>
+  };
 
-        </div>
 
-      </div>
-    );
-  }
+  // =========================================================
+  // RECOMMENDATIONS
+  // =========================================================
 
-  // ============================================================
-  // MAIN APPLICATION
-  // ============================================================
+  const recommendations =
+    result?.recommendations || [];
+
+
+  const highRiskCount =
+    recommendations.filter(
+      (item) =>
+        item.risk_level === "HIGH"
+    ).length;
+
+
+  const mediumRiskCount =
+    recommendations.filter(
+      (item) =>
+        item.risk_level === "MEDIUM"
+    ).length;
+
+
+  const lowRiskCount =
+    recommendations.filter(
+      (item) =>
+        item.risk_level === "LOW"
+    ).length;
+
+
+  // =========================================================
+  // UI
+  // =========================================================
 
   return (
+
     <div className="app">
 
-      {/* ======================================================
-          NAVBAR
-      ======================================================= */}
 
-      <header className="navbar">
+      {/* ===================================================
+          HEADER
+      =================================================== */}
 
-        <div className="logo">
+      <header className="topbar">
 
-          <div className="logo-icon">
-            AI
+        <div className="brand">
+
+          <div className="brand-icon">
+            A
           </div>
 
           <div>
 
-            <h2>
-              AIEE
-            </h2>
+            <h1>
+              AI-Evolution-Engine
+            </h1>
 
-            <span>
-              AI Evolution Engine
-            </span>
+            <p>
+              Intelligent GitHub Change Impact Analysis
+            </p>
 
           </div>
 
         </div>
 
-        {/* ====================================================
-            GITHUB AUTHENTICATION
-        ===================================================== */}
 
-        {!authenticated ? (
+        <div className="header-actions">
 
-          <button
-            className="github-login"
-            onClick={loginWithGitHub}
-            disabled={loginLoading}
-          >
 
-            <span>
-              ◉
-            </span>
+          {/* ===============================================
+              ENGINE STATUS
+          =============================================== */}
 
-            {loginLoading
-              ? "Connecting..."
-              : "Login with GitHub"}
+          <div className="status">
 
-          </button>
+            <span className="status-dot"></span>
 
-        ) : (
-
-          <div className="github-user">
-
-            <span>
-              ✓
-            </span>
-
-            <strong>
-              {githubUser}
-            </strong>
-
-            <button
-              className="logout-button"
-              onClick={logoutFromGitHub}
-            >
-              Logout
-            </button>
+            AIEE Engine Online
 
           </div>
 
-        )}
+
+          {/* ===============================================
+              AUTH LOADING
+          =============================================== */}
+
+          {authLoading && (
+
+            <div className="auth-loading">
+              Checking session...
+            </div>
+
+          )}
+
+
+          {/* ===============================================
+              LOGIN
+          =============================================== */}
+
+          {!authLoading && !authenticated && (
+            <button
+              className="github-login-button"
+              onClick={loginWithGitHub}
+            >
+              <svg
+                className="github-login-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                />
+              </svg>
+              Login with GitHub
+            </button>
+          )}
+
+          {/* ===============================================
+              LOGGED IN USER / PROFILE DROPDOWN
+          =============================================== */}
+
+          {!authLoading && authenticated && (
+            <div className="user-profile-wrapper" ref={profileButtonRef}>
+              <button
+                className="profile-trigger-btn"
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={profileMenuOpen}
+              >
+                {profile?.photoUrl ? (
+                  <img
+                    src={profile.photoUrl}
+                    alt={profile?.displayName || githubUser}
+                    className="profile-trigger-avatar"
+                  />
+                ) : (
+                  <div className="profile-trigger-initials">
+                    {(profile?.displayName || githubUser || "U")
+                      .trim()
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+                )}
+
+                <span className="profile-trigger-name">
+                  {profile?.displayName || githubUser || "User"}
+                </span>
+
+                <span
+                  className={`profile-trigger-arrow ${
+                    profileMenuOpen ? "open" : ""
+                  }`}
+                >
+                  ▼
+                </span>
+              </button>
+
+              <ProfileMenu
+                isOpen={profileMenuOpen}
+                onClose={() => setProfileMenuOpen(false)}
+                displayName={profile?.displayName}
+                githubUser={githubUser}
+                profilePhoto={profile?.photoUrl}
+                onOpenProfile={() => {
+                  setProfileMenuOpen(false);
+                  setProfileModalOpen(true);
+                }}
+                onOpenSettings={() => {
+                  setProfileMenuOpen(false);
+                  setSettingsModalOpen(true);
+                }}
+                onOpenTerms={() => {
+                  setProfileMenuOpen(false);
+                  setLegalModalState({ isOpen: true, type: "terms" });
+                }}
+                onOpenPrivacy={() => {
+                  setProfileMenuOpen(false);
+                  setLegalModalState({ isOpen: true, type: "privacy" });
+                }}
+                onLogout={() => {
+                  setProfileMenuOpen(false);
+                  logout();
+                }}
+                anchorRef={profileButtonRef}
+              />
+            </div>
+          )}
+
+        </div>
 
       </header>
 
-      {/* ======================================================
-          MAIN CONTENT
-      ======================================================= */}
 
-      <main>
+      {/* ===================================================
+          MAIN
+      =================================================== */}
 
-        {/* ====================================================
+      <main className="container">
+
+
+        {/* =================================================
             HERO
-        ===================================================== */}
+        ================================================= */}
 
         <section className="hero">
 
-          <div className="badge">
-            ⚡ AI-Powered Repository Intelligence
-          </div>
+          <div className="hero-content">
 
-          <h1>
-            Understand the impact of
-            <span>
-              {" "}every code change.
+            <span className="eyebrow">
+              AI-POWERED REPOSITORY ANALYSIS
             </span>
-          </h1>
 
-          <p>
-            AIEE analyzes your GitHub repository
-            using historical dependencies, machine
-            learning clustering and developer activity
-            to identify potentially affected files.
-          </p>
+            <h2>
+              Understand the impact of
+              <span>
+                every code change.
+              </span>
+            </h2>
+
+            <p>
+              AIEE analyzes GitHub repository history,
+              file dependencies, change frequency and
+              machine-learning clusters to identify
+              potentially affected files.
+            </p>
+
+          </div>
 
         </section>
 
-        {/* ====================================================
-            REPOSITORY ANALYSIS
-        ===================================================== */}
 
-        <section className="analyzer-card">
+        {/* =================================================
+            REPOSITORY INPUT
+        ================================================= */}
 
-          <div className="section-title">
+        <section className="analysis-card">
+
+          <div className="section-heading">
 
             <div>
 
-              <h2>
-                Repository Analysis
-              </h2>
+              <h3>
+                Analyze Repository
+              </h3>
 
               <p>
-                Enter a GitHub repository to analyze
-                its latest changes.
+                Enter a GitHub repository URL
+                to analyze its latest changes.
               </p>
 
             </div>
 
-            <div className="status">
+          </div>
 
-              <span></span>
 
-              {authenticated
-                ? "GitHub Connected"
-                : "Login Required"}
+          <div className="input-row">
+
+            <div className="input-wrapper">
+
+              <span className="input-icon">
+                ↗
+              </span>
+
+              <input
+                type="text"
+                placeholder="https://github.com/username/repository"
+                value={repo}
+                onChange={(e) =>
+                  setRepo(e.target.value)
+                }
+                onKeyDown={(e) => {
+
+                  if (e.key === "Enter") {
+
+                    analyzeRepository();
+
+                  }
+
+                }}
+              />
 
             </div>
 
-          </div>
-
-          {/* ==================================================
-              REPOSITORY INPUT
-          =================================================== */}
-
-          <div className="input-area">
-
-            <input
-              type="text"
-              value={repo}
-              onChange={(e) =>
-                setRepo(e.target.value)
-              }
-              placeholder="https://github.com/username/repository"
-              disabled={
-                !authenticated ||
-                loading
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  analyzeRepository();
-                }
-              }}
-            />
 
             <button
+              className="analyze-button"
               onClick={analyzeRepository}
               disabled={
                 loading ||
@@ -573,52 +592,72 @@ function App() {
               }
             >
 
-              {loading
-                ? "Analyzing..."
-                : "Analyze Repository →"}
+              {loading ? (
+
+                <>
+
+                  <span className="spinner"></span>
+
+                  Analyzing...
+
+                </>
+
+              ) : (
+
+                <>
+
+                  Analyze Repository
+
+                  <span>
+                    →
+                  </span>
+
+                </>
+
+              )}
 
             </button>
 
           </div>
 
-          {/* ==================================================
+
+          {/* =============================================
               LOGIN MESSAGE
-          =================================================== */}
+          ============================================= */}
 
-          {!authenticated && (
+          {!authLoading &&
+            !authenticated && (
 
-            <div className="error">
+              <div className="login-required">
 
-              🔐 Please login with GitHub before
-              analyzing a repository.
+                <span>
+                  GitHub login required
+                </span>
 
-            </div>
+                <button
+                  onClick={loginWithGitHub}
+                >
+                  Login with GitHub →
+                </button>
 
-          )}
+              </div>
 
-          {/* ==================================================
-              ERROR MESSAGE
-          =================================================== */}
+            )}
 
-          {error && authenticated && (
 
-            <div className="error">
+          {/* =============================================
+              ERROR
+          ============================================= */}
 
-              ⚠️ {error}
+          {error && (
 
-            </div>
+            <div className="error-message">
 
-          )}
+              <strong>
+                Analysis failed:
+              </strong>{" "}
 
-          {/* ==================================================
-              BACKEND ERROR
-          =================================================== */}
-
-          {error && !authenticated && (
-
-            <div className="error">
-
-              ⚠️ {error}
+              {error}
 
             </div>
 
@@ -626,70 +665,80 @@ function App() {
 
         </section>
 
-        {/* ====================================================
-            ANALYSIS LOADING
-        ===================================================== */}
+
+        {/* =================================================
+            LOADING
+        ================================================= */}
 
         {loading && (
 
           <section className="loading-card">
 
-            <div className="spinner"></div>
+            <div className="loading-spinner"></div>
 
             <h3>
               Analyzing repository...
             </h3>
 
             <p>
-              Detecting changes → dependencies →
-              clusters → risk levels
+              Detecting changes, processing repository
+              history and running ML analysis.
             </p>
 
           </section>
 
         )}
 
-        {/* ====================================================
+
+        {/* =================================================
             RESULTS
-        ===================================================== */}
+        ================================================= */}
 
         {result && !loading && (
 
           <section className="results">
 
-            {/* ==================================================
+
+            {/* =============================================
                 RESULT HEADER
-            =================================================== */}
+            ============================================= */}
 
             <div className="result-header">
 
               <div>
 
-                <span className="result-label">
+                <span className="eyebrow">
                   ANALYSIS COMPLETED
                 </span>
 
                 <h2>
-                  {result.repository}
+                  Repository Impact Analysis
                 </h2>
+
+                <p className="repo-name">
+                  {result.repository}
+                </p>
 
               </div>
 
-              <div className="success">
-                ✓ Completed
+
+              <div className="completed-badge">
+                Analysis Completed
               </div>
 
             </div>
 
-            {/* ==================================================
-                STATISTICS
-            =================================================== */}
 
-            <div className="stats">
+            {/* =============================================
+                SUMMARY
+            ============================================= */}
 
-              <div className="stat-card">
+            <div className="summary-grid">
 
-                <span>
+
+              <div className="summary-card">
+
+                <span className="summary-label">
                   Changed Files
                 </span>
 
@@ -697,94 +746,197 @@ function App() {
                   {result.changed_files?.length || 0}
                 </strong>
 
+                <small>
+                  Latest repository changes
+                </small>
+
               </div>
 
-              <div className="stat-card">
 
-                <span>
-                  Recommendations
+              <div className="summary-card">
+
+                <span className="summary-label">
+                  Affected Files
                 </span>
 
                 <strong>
                   {result.total_recommendations || 0}
                 </strong>
 
+                <small>
+                  Potentially impacted files
+                </small>
+
               </div>
 
-              <div className="stat-card">
 
-                <span>
+              <div className="summary-card">
+
+                <span className="summary-label">
                   High Risk
                 </span>
 
                 <strong className="high-number">
-
-                  {
-                    result.recommendations?.filter(
-                      (item) =>
-                        item.risk_level === "HIGH"
-                    ).length || 0
-                  }
-
+                  {highRiskCount}
                 </strong>
+
+                <small>
+                  Requires closer review
+                </small>
 
               </div>
 
-              <div className="stat-card">
 
-                <span>
-                  Medium Risk
+              <div className="summary-card">
+
+                <span className="summary-label">
+                  Historical Commits
                 </span>
 
-                <strong className="medium-number">
-
+                <strong>
                   {
-                    result.recommendations?.filter(
-                      (item) =>
-                        item.risk_level === "MEDIUM"
-                    ).length || 0
+                    result.historical_analysis
+                      ?.commits_processed || 0
                   }
-
                 </strong>
+
+                <small>
+                  Commits analyzed
+                </small>
 
               </div>
 
             </div>
 
-            {/* ==================================================
+
+            {/* =============================================
+                RISK OVERVIEW
+            ============================================= */}
+
+            <div className="risk-overview">
+
+              <div className="overview-header">
+
+                <div>
+
+                  <h3>
+                    Risk Overview
+                  </h3>
+
+                  <p>
+                    Distribution of potentially affected
+                    files identified by AIEE.
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <div className="risk-grid">
+
+
+                <div className="risk-box high-box">
+
+                  <div className="risk-title">
+                    HIGH
+                  </div>
+
+                  <div className="risk-value">
+                    {highRiskCount}
+                  </div>
+
+                  <span>
+                    High-risk files
+                  </span>
+
+                </div>
+
+
+                <div className="risk-box medium-box">
+
+                  <div className="risk-title">
+                    MEDIUM
+                  </div>
+
+                  <div className="risk-value">
+                    {mediumRiskCount}
+                  </div>
+
+                  <span>
+                    Medium-risk files
+                  </span>
+
+                </div>
+
+
+                <div className="risk-box low-box">
+
+                  <div className="risk-title">
+                    LOW
+                  </div>
+
+                  <div className="risk-value">
+                    {lowRiskCount}
+                  </div>
+
+                  <span>
+                    Low-risk files
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            {/* =============================================
                 CHANGED FILES
-            =================================================== */}
+            ============================================= */}
 
-            <div className="panel">
+            <div className="data-card">
 
-              <div className="panel-header">
+              <div className="data-card-header">
 
-                <h3>
-                  Changed Files
-                </h3>
+                <div>
 
-                <span>
+                  <h3>
+                    Latest Changed Files
+                  </h3>
+
+                  <p>
+                    Files detected from the latest
+                    repository commit.
+                  </p>
+
+                </div>
+
+                <span className="count-badge">
                   {result.changed_files?.length || 0}
-                  {" "}detected
                 </span>
 
               </div>
 
-              <div className="changed-files">
+
+              <div className="file-list">
 
                 {result.changed_files?.map(
                   (file, index) => (
 
                     <div
-                      className="changed-file"
-                      key={index}
+                      className="file-item"
+                      key={`${file}-${index}`}
                     >
 
-                      <span className="file-icon">
-                        📄
+                      <span className="file-index">
+                        {String(index + 1).padStart(
+                          2,
+                          "0"
+                        )}
                       </span>
 
-                      <span>
+                      <span className="file-name">
                         {file}
                       </span>
 
@@ -797,13 +949,14 @@ function App() {
 
             </div>
 
-            {/* ==================================================
-                RECOMMENDATIONS
-            =================================================== */}
 
-            <div className="panel">
+            {/* =============================================
+                IMPACT TABLE
+            ============================================= */}
 
-              <div className="panel-header">
+            <div className="data-card">
+
+              <div className="data-card-header">
 
                 <div>
 
@@ -812,98 +965,242 @@ function App() {
                   </h3>
 
                   <p>
-                    Ranked using AIEE hybrid intelligence
+                    Ranked using AIEE's hybrid
+                    change-impact scoring.
+                  </p>
+
+                </div>
+
+                <span className="count-badge">
+                  {recommendations.length}
+                </span>
+
+              </div>
+
+
+              <div className="table-wrapper">
+
+                <table>
+
+                  <thead>
+
+                    <tr>
+
+                      <th>
+                        Affected File
+                      </th>
+
+                      <th>
+                        Risk
+                      </th>
+
+                      <th>
+                        Score
+                      </th>
+
+                      <th>
+                        Dependency
+                      </th>
+
+                      <th>
+                        Frequency
+                      </th>
+
+                      <th>
+                        KMeans
+                      </th>
+
+                      <th>
+                        DBSCAN
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody>
+
+                    {recommendations.map(
+                      (item, index) => (
+
+                        <tr
+                          key={
+                            `${item.affected_file}-${index}`
+                          }
+                        >
+
+                          <td>
+
+                            <div className="table-file">
+
+                              <span className="file-symbol">
+                                #
+                              </span>
+
+                              {item.affected_file}
+
+                            </div>
+
+                          </td>
+
+
+                          <td>
+
+                            <span
+                              className={
+                                `risk-badge ${getRiskClass(
+                                  item.risk_level
+                                )
+                                }`
+                              }
+                            >
+                              {item.risk_level}
+                            </span>
+
+                          </td>
+
+
+                          <td>
+                            <strong>
+                              {item.final_score}
+                            </strong>
+                          </td>
+
+
+                          <td>
+                            {item.dependency_count}
+                          </td>
+
+
+                          <td>
+                            {item.file_frequency}
+                          </td>
+
+
+                          <td>
+                            {
+                              item.kmeans_cluster ??
+                              "—"
+                            }
+                          </td>
+
+
+                          <td>
+                            {
+                              item.dbscan_cluster ??
+                              "—"
+                            }
+                          </td>
+
+                        </tr>
+
+                      )
+                    )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+
+
+            {/* =============================================
+                EXPLANATION
+            ============================================= */}
+
+            <div className="data-card">
+
+              <div className="data-card-header">
+
+                <div>
+
+                  <h3>
+                    Impact Explanation
+                  </h3>
+
+                  <p>
+                    Why AIEE identified these files
+                    as potentially affected.
                   </p>
 
                 </div>
 
               </div>
 
-              <div className="recommendations">
 
-                {result.recommendations?.map(
+              <div className="recommendation-list">
+
+                {recommendations.map(
                   (item, index) => (
 
                     <div
-                      className="recommendation"
-                      key={index}
+                      className="recommendation-item"
+                      key={
+                        `${item.affected_file}-reason-${index}`
+                      }
                     >
 
-                      <div className="recommendation-main">
+                      <div className="recommendation-top">
 
-                        <div className="risk-dot">
-
-                          {item.risk_level === "HIGH"
-                            ? "🔴"
-                            : item.risk_level === "MEDIUM"
-                              ? "🟠"
-                              : "🟢"}
-
-                        </div>
-
-                        <div>
-
-                          <h4>
-                            {item.affected_file}
-                          </h4>
-
-                          <p>
-                            {item.reason}
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                      <div className="recommendation-data">
-
-                        <div className="risk-badge">
-                          {item.risk_level}
-                        </div>
-
-                        <div className="score">
+                        <div className="recommendation-file">
 
                           <span>
-                            Score
+                            {index + 1}
                           </span>
 
                           <strong>
-                            {item.final_score}
+                            {item.affected_file}
                           </strong>
 
                         </div>
 
+
+                        <span
+                          className={
+                            `risk-badge ${getRiskClass(
+                              item.risk_level
+                            )
+                            }`
+                          }
+                        >
+                          {item.risk_level}
+                        </span>
+
                       </div>
 
-                      <div className="technical-data">
+
+                      <p className="reason">
+                        {item.reason}
+                      </p>
+
+
+                      <div className="affected-by">
 
                         <span>
-                          Dependency:{" "}
-                          <strong>
-                            {item.dependency_count}
-                          </strong>
+                          Affected by:
                         </span>
 
-                        <span>
-                          Frequency:{" "}
-                          <strong>
-                            {item.file_frequency}
-                          </strong>
-                        </span>
+                        <div>
 
-                        <span>
-                          KMeans:{" "}
-                          <strong>
-                            {item.kmeans_cluster ?? "N/A"}
-                          </strong>
-                        </span>
+                          {item.changed_files?.map(
+                            (file, fileIndex) => (
 
-                        <span>
-                          DBSCAN:{" "}
-                          <strong>
-                            {item.dbscan_cluster ?? "N/A"}
-                          </strong>
-                        </span>
+                              <span
+                                className="mini-file"
+                                key={
+                                  `${file}-${fileIndex}`
+                                }
+                              >
+                                {file}
+                              </span>
+
+                            )
+                          )}
+
+                        </div>
 
                       </div>
 
@@ -916,31 +1213,187 @@ function App() {
 
             </div>
 
+
+            {/* =============================================
+                ML PIPELINE
+            ============================================= */}
+
+            <div className="data-card">
+
+              <div className="data-card-header">
+
+                <div>
+
+                  <h3>
+                    Machine Learning Analysis
+                  </h3>
+
+                  <p>
+                    Repository-specific models and
+                    historical analytics used by AIEE.
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <div className="ml-grid">
+
+
+                <div className="ml-card">
+
+                  <div className="ml-icon">
+                    K
+                  </div>
+
+                  <div>
+
+                    <h4>
+                      KMeans Clustering
+                    </h4>
+
+                    <p>
+                      Identifies groups of files with
+                      similar repository behavior.
+                    </p>
+
+                  </div>
+
+                  <span className="ml-status">
+                    Generated
+                  </span>
+
+                </div>
+
+
+                <div className="ml-card">
+
+                  <div className="ml-icon">
+                    D
+                  </div>
+
+                  <div>
+
+                    <h4>
+                      DBSCAN Clustering
+                    </h4>
+
+                    <p>
+                      Identifies dense file groups and
+                      unusual repository patterns.
+                    </p>
+
+                  </div>
+
+                  <span className="ml-status">
+                    Generated
+                  </span>
+
+                </div>
+
+
+                <div className="ml-card">
+
+                  <div className="ml-icon">
+                    P
+                  </div>
+
+                  <div>
+
+                    <h4>
+                      Repository History
+                    </h4>
+
+                    <p>
+                      Historical file changes and
+                      co-change relationships.
+                    </p>
+
+                  </div>
+
+                  <span className="ml-status">
+                    Processed
+                  </span>
+
+                </div>
+
+
+              </div>
+
+            </div>
+
           </section>
 
         )}
 
       </main>
 
-      {/* ======================================================
+
+      {/* ===================================================
           FOOTER
-      ======================================================= */}
+      =================================================== */}
 
       <footer>
+        <div className="developer-credit">
+          <img
+            src={chandanPhoto}
+            alt="Chandan P L"
+            className="developer-photo"
+          />
+          <span className="developer-text">
+            Developed by <span className="developer-name">Chandan P L</span>
+            <span className="developer-divider">|</span>
+            <span className="developer-role">AI/ML Engineer</span>
+          </span>
+        </div>
 
-        <span>
-          AI-Evolution-Engine    AC2914
-        </span>
-
-        <span>
-          Dependency Intelligence • ML Clustering •
-          Risk Analysis
-        </span>
-
+        <p className="footer-tagline">
+          AI-Evolution-Engine · Intelligent GitHub Change Impact Analysis
+        </p>
       </footer>
 
+      {/* ===================================================
+          MODALS
+      =================================================== */}
+
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        profile={profile}
+        githubUser={githubUser}
+        onSaveProfile={handleSaveProfile}
+      />
+
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        theme={theme}
+        onThemeChange={handleThemeChange}
+        profile={profile}
+        githubUser={githubUser}
+        onOpenProfile={() => setProfileModalOpen(true)}
+        onOpenTerms={() =>
+          setLegalModalState({ isOpen: true, type: "terms" })
+        }
+        onOpenPrivacy={() =>
+          setLegalModalState({ isOpen: true, type: "privacy" })
+        }
+        onLogout={logout}
+      />
+
+      <LegalModal
+        isOpen={legalModalState.isOpen}
+        onClose={() =>
+          setLegalModalState({ isOpen: false, type: "terms" })
+        }
+        type={legalModalState.type}
+      />
+
     </div>
+
   );
+
 }
 
 export default App;

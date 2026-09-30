@@ -1,17 +1,45 @@
+# =========================
 # Python
+# =========================
 venv/
+.venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 
-# VS Code
-.vscode/
-
-# Environment
+# =========================
+# Environment variables
+# =========================
 .env
+.env.*
+!.env.example
 
-# Generated datasets
+# =========================
+# VS Code / IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Node / React / Vite
+# =========================
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vite/
+
+# =========================
+# Generated AIEE datasets
+# =========================
 data/raw/*.csv
 data/processed/*.csv
 
+# =========================
 # Cloned repositories
+# =========================
 repositories/
+
+# =========================
+# Logs
+# =========================
+*.log

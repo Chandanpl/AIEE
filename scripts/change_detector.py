@@ -1,355 +1,259 @@
-from github import Github, Auth
-import pandas as pd
+import os
+import csv
+
+from github import Github
+from github.Auth import Token
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 # ============================================================
-# Normalize GitHub Repository URL
+# FILES/DIRECTORIES TO IGNORE
 # ============================================================
 
-def normalize_repo_name(repo_name):
+IGNORED_DIRECTORIES = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+}
+
+IGNORED_EXTENSIONS = {
+    ".pyc",
+    ".pyo",
+    ".class",
+    ".log",
+}
+
+
+def should_ignore_file(file_path: str) -> bool:
+    """
+    Returns True if the file should not be analyzed by AIEE.
+    """
+
+    file_path = file_path.replace("\\", "/")
+
+    parts = file_path.split("/")
+
+    # Ignore generated/dependency directories
+    for directory in IGNORED_DIRECTORIES:
+        if directory in parts:
+            return True
+
+    filename = os.path.basename(file_path)
+
+    # Ignore generated file types
+    _, extension = os.path.splitext(filename)
+
+    if extension.lower() in IGNORED_EXTENSIONS:
+        return True
+
+    # Ignore environment/secrets
+    if filename in {
+        ".env",
+        ".env.local",
+        ".env.production",
+    }:
+        return True
+
+    return False
+
+
+def normalize_repo_name(repo_name: str) -> str:
+    """
+    Convert GitHub URL into owner/repository format.
+    """
 
     repo_name = repo_name.strip()
 
-    if repo_name.startswith(
-        "https://github.com/"
-    ):
+    repo_name = repo_name.replace(
+        "https://github.com/",
+        ""
+    )
 
-        repo_name = repo_name.replace(
-            "https://github.com/",
-            "",
-            1
-        )
+    repo_name = repo_name.replace(
+        "http://github.com/",
+        ""
+    )
 
-    elif repo_name.startswith(
-        "http://github.com/"
-    ):
+    repo_name = repo_name.replace(
+        "github.com/",
+        ""
+    )
 
-        repo_name = repo_name.replace(
-            "http://github.com/",
-            "",
-            1
-        )
+    repo_name = repo_name.strip("/")
 
     if repo_name.endswith(".git"):
-
         repo_name = repo_name[:-4]
-
-    repo_name = repo_name.rstrip("/")
 
     return repo_name
 
 
-# ============================================================
-# Detect Changed Files
-# ============================================================
+def detect_changes(repo_name: str, access_token: str):
 
-def detect_changes(
-    repo_name,
-    access_token
-):
+    print("\nStarting GitHub change detection...")
 
-    # --------------------------------------------------------
-    # Validate Access Token
-    # --------------------------------------------------------
+    repo_name = normalize_repo_name(repo_name)
+
+    print(f"\nRepository: {repo_name}")
 
     if not access_token:
-
         raise ValueError(
-            "GitHub access token is not available. "
-            "Please login with GitHub again."
+            "GitHub access token is required."
         )
 
-    # --------------------------------------------------------
-    # Normalize Repository
-    # --------------------------------------------------------
+    # ========================================================
+    # CONNECT TO GITHUB
+    # ========================================================
 
-    repo_name = normalize_repo_name(
-        repo_name
+    auth = Token(access_token)
+
+    github = Github(auth=auth)
+
+    print("GitHub OAuth token accepted.")
+
+    repo = github.get_repo(repo_name)
+
+    print("Repository loaded successfully!")
+    print(f"Repository: {repo.full_name}")
+
+    # ========================================================
+    # GET LATEST COMMIT
+    # ========================================================
+
+    latest_commit = repo.get_commits()[0]
+
+    print("\nLatest Commit")
+    print("=" * 60)
+
+    print(
+        f"Commit ID : {latest_commit.sha}"
     )
 
     print(
-        "\nRepository:",
-        repo_name
-    )
-
-    # --------------------------------------------------------
-    # Authenticate using the currently logged-in
-    # GitHub user's OAuth access token.
-    # --------------------------------------------------------
-
-    try:
-
-        auth = Auth.Token(
-            access_token
-        )
-
-        github = Github(
-            auth=auth
-        )
-
-        print(
-            "GitHub OAuth token accepted."
-        )
-
-    except Exception as e:
-
-        print(
-            "\n❌ GitHub authentication failed."
-        )
-
-        print(
-            "Error:",
-            e
-        )
-
-        raise ValueError(
-            "Invalid GitHub access token."
-        )
-
-    # --------------------------------------------------------
-    # Load Repository
-    # --------------------------------------------------------
-
-    try:
-
-        repo = github.get_repo(
-            repo_name
-        )
-
-        print(
-            "Repository loaded successfully!"
-        )
-
-        print(
-            "Repository:",
-            repo.full_name
-        )
-
-    except Exception as e:
-
-        print(
-            "\n❌ Could not load repository."
-        )
-
-        print(
-            "Repository:",
-            repo_name
-        )
-
-        print(
-            "Error:",
-            e
-        )
-
-        raise ValueError(
-            "Could not access the GitHub repository. "
-            "Make sure the repository exists and "
-            "the logged-in GitHub account has access."
-        )
-
-    # --------------------------------------------------------
-    # Get Latest Commit
-    # --------------------------------------------------------
-
-    try:
-
-        latest_commit = (
-            repo.get_commits()[0]
-        )
-
-    except Exception as e:
-
-        print(
-            "\n❌ Could not retrieve latest commit."
-        )
-
-        print(
-            "Error:",
-            e
-        )
-
-        raise ValueError(
-            "Could not retrieve repository commits."
-        )
-
-    print(
-        "\nLatest Commit"
+        f"Author    : "
+        f"{latest_commit.commit.author.name}"
     )
 
     print(
-        "=" * 60
+        f"Message   : "
+        f"{latest_commit.commit.message.splitlines()[0]}"
     )
 
-    print(
-        "Commit ID :",
-        latest_commit.sha
-    )
-
-    print(
-        "Author    :",
-        latest_commit.commit.author.name
-    )
-
-    print(
-        "Message   :",
-        latest_commit.commit.message
-    )
-
-    # --------------------------------------------------------
-    # Detect Changed Files
-    # --------------------------------------------------------
-
-    print(
-        "\nChanged Files"
-    )
-
-    print(
-        "=" * 60
-    )
+    # ========================================================
+    # EXTRACT CHANGED FILES
+    # ========================================================
 
     changed_files = []
 
-    try:
+    print("\nChanged Files")
+    print("=" * 60)
 
-        for file in latest_commit.files:
+    for file in latest_commit.files:
 
-            print(
-                f"{file.filename} | "
-                f"Status: {file.status} | "
-                f"Changes: {file.changes}"
-            )
+        filename = file.filename
 
-            changed_files.append(
-                file.filename
-            )
+        # ----------------------------------------------------
+        # Ignore generated files
+        # ----------------------------------------------------
 
-    except Exception as e:
-
-        print(
-            "\n❌ Could not retrieve changed files."
-        )
-
-        print(
-            "Error:",
-            e
-        )
-
-        raise ValueError(
-            "Could not retrieve files from "
-            "the latest GitHub commit."
-        )
-
-    # --------------------------------------------------------
-    # Display Files
-    # --------------------------------------------------------
-
-    print(
-        "\nFiles detected for analysis:"
-    )
-
-    if not changed_files:
-
-        print(
-            "No changed files found."
-        )
-
-    else:
-
-        for file_name in changed_files:
+        if should_ignore_file(filename):
 
             print(
-                " -",
-                file_name
+                f"{filename} | "
+                f"IGNORED"
             )
 
-    # --------------------------------------------------------
-    # Save Current Changes
-    # --------------------------------------------------------
-
-    try:
-
-        changes_df = pd.DataFrame({
-
-            "file_name":
-                changed_files
-
-        })
-
-        changes_df.to_csv(
-
-            "data/processed/"
-            "current_changes.csv",
-
-            index=False
-
-        )
+            continue
 
         print(
-            "\n✅ Current changed files saved to "
-            "data/processed/current_changes.csv"
+            f"{filename} | "
+            f"Status: {file.status} | "
+            f"Changes: {file.changes}"
         )
 
-    except Exception as e:
-
-        print(
-            "\n⚠️ Could not save current changes."
+        changed_files.append(
+            {
+                "file": filename,
+                "status": file.status,
+                "changes": file.changes,
+                "additions": file.additions,
+                "deletions": file.deletions,
+            }
         )
 
-        print(
-            "Error:",
-            e
+    # ========================================================
+    # SUMMARY
+    # ========================================================
+
+    print("\nFiles detected for analysis:")
+
+    for item in changed_files:
+        print(f" - {item['file']}")
+
+    # ========================================================
+    # SAVE CURRENT CHANGES
+    # ========================================================
+
+    base_dir = os.path.dirname(
+        os.path.dirname(__file__)
+    )
+
+    output_dir = os.path.join(
+        base_dir,
+        "data",
+        "processed"
+    )
+
+    os.makedirs(
+        output_dir,
+        exist_ok=True
+    )
+
+    output_file = os.path.join(
+        output_dir,
+        "current_changes.csv"
+    )
+
+    with open(
+        output_file,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as csvfile:
+
+        writer = csv.DictWriter(
+            csvfile,
+            fieldnames=[
+                "file",
+                "status",
+                "changes",
+                "additions",
+                "deletions",
+            ],
         )
 
-        # Do not stop the complete analysis just because
-        # the CSV could not be written.
+        writer.writeheader()
 
-    # --------------------------------------------------------
-    # Close GitHub Connection
-    # --------------------------------------------------------
-
-    try:
-
-        github.close()
-
-    except Exception:
-
-        pass
-
-    # --------------------------------------------------------
-    # Return Changed Files
-    # --------------------------------------------------------
-
-    return changed_files
-
-
-# ============================================================
-# Standalone Execution
-# ============================================================
-
-if __name__ == "__main__":
+        writer.writerows(
+            changed_files
+        )
 
     print(
-        "\nAIEE GitHub Change Detector"
+        "\n✅ Current changed files saved to "
+        f"{output_file}"
     )
 
     print(
-        "=" * 60
+        "GitHub change detection completed."
     )
 
-    repo_name = input(
-        "Enter GitHub repository: "
-    ).strip()
-
-    print(
-        "\nFor standalone execution, provide a "
-        "GitHub access token."
-    )
-
-    access_token = input(
-        "Enter GitHub access token: "
-    ).strip()
-
-    detect_changes(
-        repo_name,
-        access_token
-    )
+    return [
+    item["file"]
+    for item in changed_files
+    ]
