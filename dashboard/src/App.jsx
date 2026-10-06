@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import "./App.css";
-import chandanPhoto from "./assets/chandan.jpeg";
+import chandanPhoto from "./assets/Chandan.jpeg";
 import ProfileMenu from "./components/ProfileMenu";
 import ProfileModal from "./components/ProfileModal";
 import SettingsModal from "./components/SettingsModal";
 import LegalModal from "./components/LegalModal";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 const GITHUB_LOGIN_URL =
   `${API_BASE_URL}/auth/github/login`;
@@ -448,9 +449,8 @@ function App() {
                 </span>
 
                 <span
-                  className={`profile-trigger-arrow ${
-                    profileMenuOpen ? "open" : ""
-                  }`}
+                  className={`profile-trigger-arrow ${profileMenuOpen ? "open" : ""
+                    }`}
                 >
                   ▼
                 </span>

@@ -1,0 +1,19 @@
+services:
+
+  backend:
+    image: aiee-backend:local
+    container_name: aiee-backend
+    env_file:
+      - .env.docker
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    image: aiee-frontend:local
+    container_name: aiee-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
