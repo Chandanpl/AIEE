@@ -50,4 +50,4 @@ pipeline {
             echo 'AIEE CI/CD pipeline failed. Check the stage logs.'
         }
     }
-}
+}// Automatic Jenkins trigger test
