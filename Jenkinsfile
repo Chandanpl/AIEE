@@ -11,20 +11,20 @@ pipeline {
 
         stage('Verify Environment') {
             steps {
-                bat 'docker --version'
+                bat '"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" --version'
                 bat 'kubectl version --client'
             }
         }
 
         stage('Build Backend Image') {
             steps {
-                bat 'docker build -f Dockerfile.backend -t aiee-backend:jenkins .'
+                bat '"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" build -f Dockerfile.backend -t aiee-backend:jenkins .'
             }
         }
 
         stage('Build Frontend Image') {
             steps {
-                bat 'docker build -t aiee-frontend:jenkins .\\dashboard'
+                bat '"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" build -t aiee-frontend:jenkins .\\dashboard'
             }
         }
 
