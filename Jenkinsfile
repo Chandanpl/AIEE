@@ -28,9 +28,14 @@ pipeline {
             }
         }
 
-        stage('Verify Kubernetes') {
+        stage('Deploy to Kubernetes') {
             steps {
-                bat 'kubectl get nodes'
+                bat 'kubectl set image deployment/aiee-backend backend=aiee-backend:jenkins -n aiee'
+                bat 'kubectl set image deployment/aiee-frontend frontend=aiee-frontend:jenkins -n aiee'
+
+                bat 'kubectl rollout status deployment/aiee-backend -n aiee'
+                bat 'kubectl rollout status deployment/aiee-frontend -n aiee'
+
                 bat 'kubectl get pods -n aiee'
             }
         }
@@ -38,11 +43,11 @@ pipeline {
 
     post {
         success {
-            echo 'AIEE CI pipeline completed successfully.'
+            echo 'AIEE CI/CD pipeline completed successfully.'
         }
 
         failure {
-            echo 'AIEE CI pipeline failed. Check the stage logs.'
+            echo 'AIEE CI/CD pipeline failed. Check the stage logs.'
         }
     }
 }
