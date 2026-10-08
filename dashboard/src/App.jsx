@@ -7,7 +7,7 @@ import SettingsModal from "./components/SettingsModal";
 import LegalModal from "./components/LegalModal";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_BASE_URL || "https://aiee-89gj.onrender.com";//adding new call back url
 
 const GITHUB_LOGIN_URL =
   `${API_BASE_URL}/auth/github/login`;
