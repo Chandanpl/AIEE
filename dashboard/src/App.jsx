@@ -7,7 +7,10 @@ import SettingsModal from "./components/SettingsModal";
 import LegalModal from "./components/LegalModal";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD
+    ? "https://aiee-89gj.onrender.com"
+    : "http://127.0.0.1:8000");
 
 const GITHUB_LOGIN_URL =
   `${API_BASE_URL}/auth/github/login`;
@@ -40,6 +43,7 @@ function App() {
     } catch (e) {
       console.error("Failed to load profile from localStorage:", e);
     }
+
     return {
       displayName: "Chandan P L",
       photoUrl: chandanPhoto,
@@ -55,6 +59,7 @@ function App() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+
   const [legalModalState, setLegalModalState] = useState({
     isOpen: false,
     type: "terms",
@@ -71,10 +76,17 @@ function App() {
 
   const handleSaveProfile = (newProfile) => {
     setProfile(newProfile);
+
     try {
-      localStorage.setItem("aiee_user_profile", JSON.stringify(newProfile));
+      localStorage.setItem(
+        "aiee_user_profile",
+        JSON.stringify(newProfile)
+      );
     } catch (e) {
-      console.error("Failed to save profile to localStorage:", e);
+      console.error(
+        "Failed to save profile to localStorage:",
+        e
+      );
     }
   };
 
@@ -88,11 +100,8 @@ function App() {
   // =========================================================
 
   useEffect(() => {
-
     const checkAuthentication = async () => {
-
       try {
-
         const response = await fetch(
           `${API_BASE_URL}/auth/status`,
           {
@@ -103,7 +112,6 @@ function App() {
         const data = await response.json();
 
         if (data.authenticated) {
-
           setAuthenticated(true);
 
           setGithubUser(
@@ -111,36 +119,26 @@ function App() {
             data.name ||
             ""
           );
-
         } else {
-
           setAuthenticated(false);
-
           setGithubUser("");
-
         }
 
       } catch (error) {
-
         console.error(
           "Authentication check failed:",
           error
         );
 
         setAuthenticated(false);
-
         setGithubUser("");
 
       } finally {
-
         setAuthLoading(false);
-
       }
-
     };
 
     checkAuthentication();
-
   }, []);
 
 
@@ -149,10 +147,8 @@ function App() {
   // =========================================================
 
   const loginWithGitHub = () => {
-
     window.location.href =
       GITHUB_LOGIN_URL;
-
   };
 
 
@@ -161,9 +157,7 @@ function App() {
   // =========================================================
 
   const logout = async () => {
-
     try {
-
       await fetch(
         `${API_BASE_URL}/auth/github/logout`,
         {
@@ -173,20 +167,15 @@ function App() {
       );
 
     } catch (error) {
-
       console.error(
         "Logout failed:",
         error
       );
-
     }
 
     setAuthenticated(false);
-
     setGithubUser("");
-
     setResult(null);
-
   };
 
 
@@ -195,7 +184,6 @@ function App() {
   // =========================================================
 
   const analyzeRepository = async () => {
-
     setError("");
 
     // -------------------------------------------------------
@@ -203,13 +191,11 @@ function App() {
     // -------------------------------------------------------
 
     if (!authenticated) {
-
       setError(
         "Please login with GitHub before analyzing a repository."
       );
 
       return;
-
     }
 
     // -------------------------------------------------------
@@ -217,28 +203,23 @@ function App() {
     // -------------------------------------------------------
 
     if (!repo.trim()) {
-
       setError(
         "Please enter a GitHub repository URL."
       );
 
       return;
-
     }
 
     setLoading(true);
-
     setResult(null);
 
     try {
-
       const response = await fetch(
         `${API_BASE_URL}/analyze?repo=${encodeURIComponent(
           repo.trim()
         )}`,
         {
           method: "POST",
-
           credentials: "include",
         }
       );
@@ -247,18 +228,15 @@ function App() {
         await response.json();
 
       if (!response.ok) {
-
         throw new Error(
           data.detail ||
           "Repository analysis failed."
         );
-
       }
 
       setResult(data);
 
     } catch (err) {
-
       console.error(
         "AIEE analysis error:",
         err
@@ -270,11 +248,8 @@ function App() {
       );
 
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
 
@@ -283,7 +258,6 @@ function App() {
   // =========================================================
 
   const getRiskClass = (risk) => {
-
     if (risk === "HIGH") {
       return "risk-high";
     }
@@ -293,7 +267,6 @@ function App() {
     }
 
     return "risk-low";
-
   };
 
 
@@ -304,20 +277,17 @@ function App() {
   const recommendations =
     result?.recommendations || [];
 
-
   const highRiskCount =
     recommendations.filter(
       (item) =>
         item.risk_level === "HIGH"
     ).length;
 
-
   const mediumRiskCount =
     recommendations.filter(
       (item) =>
         item.risk_level === "MEDIUM"
     ).length;
-
 
   const lowRiskCount =
     recommendations.filter(
@@ -331,9 +301,7 @@ function App() {
   // =========================================================
 
   return (
-
     <div className="app">
-
 
       {/* ===================================================
           HEADER
@@ -364,7 +332,6 @@ function App() {
 
         <div className="header-actions">
 
-
           {/* ===============================================
               ENGINE STATUS
           =============================================== */}
@@ -383,11 +350,9 @@ function App() {
           =============================================== */}
 
           {authLoading && (
-
             <div className="auth-loading">
               Checking session...
             </div>
-
           )}
 
 
@@ -397,6 +362,7 @@ function App() {
 
           {!authLoading && !authenticated && (
             <button
+              type="button"
               className="github-login-button"
               onClick={loginWithGitHub}
             >
@@ -413,31 +379,50 @@ function App() {
                   d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
                 />
               </svg>
+
               Login with GitHub
             </button>
           )}
+
 
           {/* ===============================================
               LOGGED IN USER / PROFILE DROPDOWN
           =============================================== */}
 
           {!authLoading && authenticated && (
-            <div className="user-profile-wrapper" ref={profileButtonRef}>
+            <div
+              className="user-profile-wrapper"
+              ref={profileButtonRef}
+            >
+
               <button
+                type="button"
                 className="profile-trigger-btn"
-                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                onClick={() =>
+                  setProfileMenuOpen(
+                    (prev) => !prev
+                  )
+                }
                 aria-haspopup="menu"
                 aria-expanded={profileMenuOpen}
               >
+
                 {profile?.photoUrl ? (
                   <img
                     src={profile.photoUrl}
-                    alt={profile?.displayName || githubUser}
+                    alt={
+                      profile?.displayName ||
+                      githubUser
+                    }
                     className="profile-trigger-avatar"
                   />
                 ) : (
                   <div className="profile-trigger-initials">
-                    {(profile?.displayName || githubUser || "U")
+                    {(
+                      profile?.displayName ||
+                      githubUser ||
+                      "U"
+                    )
                       .trim()
                       .charAt(0)
                       .toUpperCase()}
@@ -445,23 +430,36 @@ function App() {
                 )}
 
                 <span className="profile-trigger-name">
-                  {profile?.displayName || githubUser || "User"}
+                  {profile?.displayName ||
+                    githubUser ||
+                    "User"}
                 </span>
 
                 <span
-                  className={`profile-trigger-arrow ${profileMenuOpen ? "open" : ""
-                    }`}
+                  className={`profile-trigger-arrow ${
+                    profileMenuOpen
+                      ? "open"
+                      : ""
+                  }`}
                 >
                   ▼
                 </span>
+
               </button>
+
 
               <ProfileMenu
                 isOpen={profileMenuOpen}
-                onClose={() => setProfileMenuOpen(false)}
-                displayName={profile?.displayName}
+                onClose={() =>
+                  setProfileMenuOpen(false)
+                }
+                displayName={
+                  profile?.displayName
+                }
                 githubUser={githubUser}
-                profilePhoto={profile?.photoUrl}
+                profilePhoto={
+                  profile?.photoUrl
+                }
                 onOpenProfile={() => {
                   setProfileMenuOpen(false);
                   setProfileModalOpen(true);
@@ -472,11 +470,17 @@ function App() {
                 }}
                 onOpenTerms={() => {
                   setProfileMenuOpen(false);
-                  setLegalModalState({ isOpen: true, type: "terms" });
+                  setLegalModalState({
+                    isOpen: true,
+                    type: "terms",
+                  });
                 }}
                 onOpenPrivacy={() => {
                   setProfileMenuOpen(false);
-                  setLegalModalState({ isOpen: true, type: "privacy" });
+                  setLegalModalState({
+                    isOpen: true,
+                    type: "privacy",
+                  });
                 }}
                 onLogout={() => {
                   setProfileMenuOpen(false);
@@ -484,6 +488,7 @@ function App() {
                 }}
                 anchorRef={profileButtonRef}
               />
+
             </div>
           )}
 
@@ -570,13 +575,9 @@ function App() {
                   setRepo(e.target.value)
                 }
                 onKeyDown={(e) => {
-
                   if (e.key === "Enter") {
-
                     analyzeRepository();
-
                   }
-
                 }}
               />
 
@@ -584,6 +585,7 @@ function App() {
 
 
             <button
+              type="button"
               className="analyze-button"
               onClick={analyzeRepository}
               disabled={
@@ -593,27 +595,18 @@ function App() {
             >
 
               {loading ? (
-
                 <>
-
                   <span className="spinner"></span>
-
                   Analyzing...
-
                 </>
-
               ) : (
-
                 <>
-
                   Analyze Repository
 
                   <span>
                     →
                   </span>
-
                 </>
-
               )}
 
             </button>
@@ -635,6 +628,7 @@ function App() {
                 </span>
 
                 <button
+                  type="button"
                   onClick={loginWithGitHub}
                 >
                   Login with GitHub →
@@ -735,7 +729,6 @@ function App() {
 
             <div className="summary-grid">
 
-
               <div className="summary-card">
 
                 <span className="summary-label">
@@ -834,7 +827,6 @@ function App() {
 
 
               <div className="risk-grid">
-
 
                 <div className="risk-box high-box">
 
@@ -1051,8 +1043,7 @@ function App() {
                               className={
                                 `risk-badge ${getRiskClass(
                                   item.risk_level
-                                )
-                                }`
+                                )}`
                               }
                             >
                               {item.risk_level}
@@ -1162,8 +1153,7 @@ function App() {
                           className={
                             `risk-badge ${getRiskClass(
                               item.risk_level
-                            )
-                            }`
+                            )}`
                           }
                         >
                           {item.risk_level}
@@ -1335,23 +1325,42 @@ function App() {
       =================================================== */}
 
       <footer>
+
         <div className="developer-credit">
+
           <img
             src={chandanPhoto}
             alt="Chandan P L"
             className="developer-photo"
           />
+
           <span className="developer-text">
-            Developed by <span className="developer-name">Chandan P L</span>
-            <span className="developer-divider">|</span>
-            <span className="developer-role">AI/ML Engineer</span>
+
+            Developed by{" "}
+
+            <span className="developer-name">
+              Chandan P L
+            </span>
+
+            <span className="developer-divider">
+              |
+            </span>
+
+            <span className="developer-role">
+              AI/ML Engineer
+            </span>
+
           </span>
+
         </div>
+
 
         <p className="footer-tagline">
           AI-Evolution-Engine · Intelligent GitHub Change Impact Analysis
         </p>
+
       </footer>
+
 
       {/* ===================================================
           MODALS
@@ -1359,41 +1368,56 @@ function App() {
 
       <ProfileModal
         isOpen={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
+        onClose={() =>
+          setProfileModalOpen(false)
+        }
         profile={profile}
         githubUser={githubUser}
         onSaveProfile={handleSaveProfile}
       />
 
+
       <SettingsModal
         isOpen={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
+        onClose={() =>
+          setSettingsModalOpen(false)
+        }
         theme={theme}
         onThemeChange={handleThemeChange}
         profile={profile}
         githubUser={githubUser}
-        onOpenProfile={() => setProfileModalOpen(true)}
+        onOpenProfile={() =>
+          setProfileModalOpen(true)
+        }
         onOpenTerms={() =>
-          setLegalModalState({ isOpen: true, type: "terms" })
+          setLegalModalState({
+            isOpen: true,
+            type: "terms",
+          })
         }
         onOpenPrivacy={() =>
-          setLegalModalState({ isOpen: true, type: "privacy" })
+          setLegalModalState({
+            isOpen: true,
+            type: "privacy",
+          })
         }
         onLogout={logout}
       />
 
+
       <LegalModal
         isOpen={legalModalState.isOpen}
         onClose={() =>
-          setLegalModalState({ isOpen: false, type: "terms" })
+          setLegalModalState({
+            isOpen: false,
+            type: "terms",
+          })
         }
         type={legalModalState.type}
       />
 
     </div>
-
   );
-
 }
 
 export default App;
