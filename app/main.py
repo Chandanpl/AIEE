@@ -42,14 +42,27 @@ app.include_router(github_auth_router)
 # CORS Middleware
 # ============================================================
 
+# CORS configuration
+allowed_origins = [
+    # Kubernetes / local frontend
+    "http://localhost:30080",
+    "http://127.0.0.1:30080",
+
+    # Vite development frontend
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# Production frontend URL is supplied through the FRONTEND_URL
+# environment variable on Render.
+frontend_url = os.getenv("FRONTEND_URL")
+
+if frontend_url and frontend_url not in allowed_origins:
+    allowed_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:30080",
-        "http://127.0.0.1:30080",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
