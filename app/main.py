@@ -30,11 +30,6 @@ app = FastAPI(
     version="0.1.0",
 )
 
-
-# ============================================================
-# GitHub Authentication Router
-# ============================================================
-
 app.include_router(github_auth_router)
 
 
@@ -42,20 +37,15 @@ app.include_router(github_auth_router)
 # CORS Middleware
 # ============================================================
 
-# CORS configuration
 allowed_origins = [
-    # Kubernetes / local frontend
+    "https://aiee-1-ymwf.onrender.com",
     "http://localhost:30080",
     "http://127.0.0.1:30080",
-
-    # Vite development frontend
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 
-# Production frontend URL is supplied through the FRONTEND_URL
-# environment variable on Render.
-frontend_url = os.getenv("FRONTEND_URL")
+frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
 
 if frontend_url and frontend_url not in allowed_origins:
     allowed_origins.append(frontend_url)
@@ -70,21 +60,26 @@ app.add_middleware(
 
 
 # ============================================================
-# Database Session Helper
+# Authentication Helper
 # ============================================================
 
 def get_authenticated_session(request: Request):
     """
-    Retrieve the authenticated AIEE session from PostgreSQL.
+    Authenticate using either:
+    1. The HttpOnly aiee_session cookie.
+    2. Authorization: Bearer <AIEE session ID>.
 
-    Returns:
-        (db, session)
-
-    If authentication fails:
-        (None, None)
+    The Bearer token must be an AIEE session ID stored in the
+    database, not a GitHub OAuth access token.
     """
 
     session_id = request.cookies.get("aiee_session")
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, credentials = authorization.partition(" ")
+
+    if scheme.lower() == "bearer" and credentials.strip():
+        session_id = credentials.strip()
 
     if not session_id:
         return None, None
@@ -92,42 +87,30 @@ def get_authenticated_session(request: Request):
     db = SessionLocal()
 
     try:
-
         session = db.get(DBSession, session_id)
 
-        if not session:
+        if session is None:
             db.close()
             return None, None
 
-        # ----------------------------------------------------
-        # Check session expiration
-        # ----------------------------------------------------
-
         if session.expires_at is not None:
-
             now = datetime.now(timezone.utc)
-
             expires_at = session.expires_at
 
-            # PostgreSQL may return a naive datetime.
-            # Treat it as UTC safely.
             if expires_at.tzinfo is None:
                 expires_at = expires_at.replace(
                     tzinfo=timezone.utc
                 )
 
             if expires_at <= now:
-
                 db.delete(session)
                 db.commit()
                 db.close()
-
                 return None, None
 
         return db, session
 
     except Exception:
-
         db.close()
         raise
 
@@ -138,7 +121,6 @@ def get_authenticated_session(request: Request):
 
 @app.get("/")
 async def root():
-
     return {
         "message": "Welcome to the AI-Evolution-Engine API",
         "status": "healthy",
@@ -152,7 +134,6 @@ async def root():
 
 @app.get("/health")
 async def health():
-
     return {
         "status": "healthy",
         "service": "AI-Evolution-Engine",
@@ -160,7 +141,7 @@ async def health():
 
 
 # ============================================================
-# GitHub Authentication Status
+# Authentication Status
 # ============================================================
 
 @app.get("/auth/status")
@@ -170,112 +151,57 @@ async def auth_status(request: Request):
     print("AIEE AUTH STATUS")
     print("=" * 60)
 
-    print(
-        "Request origin:",
-        request.headers.get("origin")
+    print("Request origin:", request.headers.get("origin"))
+    print("Request host:", request.headers.get("host"))
+
+    cookie_session_id = request.cookies.get("aiee_session")
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, bearer_value = authorization.partition(" ")
+
+    bearer_session_present = (
+        scheme.lower() == "bearer"
+        and bool(bearer_value.strip())
     )
 
-    print(
-        "Request host:",
-        request.headers.get("host")
-    )
+    print("Cookie received:", bool(cookie_session_id))
+    print("Bearer session received:", bearer_session_present)
 
-    session_id = request.cookies.get("aiee_session")
-
-    print(
-        "Cookie received:",
-        bool(session_id)
-    )
-
-    # --------------------------------------------------------
-    # No cookie
-    # --------------------------------------------------------
-
-    if not session_id:
-
-        print(
-            "AUTH RESULT: NOT AUTHENTICATED "
-            "(NO COOKIE)"
-        )
-
-        print("=" * 60)
-
+    if not cookie_session_id and not bearer_session_present:
         return {
             "authenticated": False,
-            "message": (
-                "User is not logged in with GitHub."
-            ),
+            "message": "User is not logged in with GitHub.",
         }
 
     db = None
 
     try:
-
-        # ----------------------------------------------------
-        # Get PostgreSQL session
-        # ----------------------------------------------------
-
-        db, session = get_authenticated_session(
-            request
-        )
+        db, session = get_authenticated_session(request)
 
         if not session:
-
-            print(
-                "AUTH RESULT: NOT AUTHENTICATED "
-                "(SESSION NOT FOUND OR EXPIRED)"
-            )
-
-            print("=" * 60)
-
             return {
                 "authenticated": False,
-                "message": (
-                    "GitHub session is invalid or expired."
-                ),
+                "message": "GitHub session is invalid or expired.",
             }
-
-        # ----------------------------------------------------
-        # Get user from relationship
-        # ----------------------------------------------------
 
         user = session.user
 
         if not user:
-
-            print(
-                "AUTH RESULT: NOT AUTHENTICATED "
-                "(USER NOT FOUND)"
-            )
-
-            print("=" * 60)
-
             return {
                 "authenticated": False,
-                "message": (
-                    "Associated GitHub user was not found."
-                ),
+                "message": "Associated GitHub user was not found.",
             }
 
-        print(
-            "AUTH RESULT: AUTHENTICATED",
-            "| GitHub user:",
-            user.github_username,
-        )
-
-        print("=" * 60)
+        print("AUTH RESULT: AUTHENTICATED")
+        print("GitHub user:", user.github_username)
 
         return {
             "authenticated": True,
             "github_user": user.github_username,
-            "name": (
-                user.name
-                or user.github_username
-            ),
+            "name": user.name or user.github_username,
         }
 
     finally:
-
         if db is not None:
             db.close()
 
@@ -285,13 +211,10 @@ async def auth_status(request: Request):
 # ============================================================
 
 def get_risk_level(score: int):
-
     if score >= 25:
         return "HIGH"
-
     elif score >= 10:
         return "MEDIUM"
-
     return "LOW"
 
 
@@ -300,15 +223,13 @@ def get_risk_level(score: int):
 # ============================================================
 
 BASE_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
+    os.path.dirname(os.path.abspath(__file__))
 )
 
 PROCESSED_DATA_DIR = os.path.join(
     BASE_DIR,
     "data",
-    "processed"
+    "processed",
 )
 
 
@@ -319,42 +240,30 @@ PROCESSED_DATA_DIR = os.path.join(
 def load_aiee_datasets():
 
     try:
-
         dependency_path = os.path.join(
             PROCESSED_DATA_DIR,
-            "file_dependency.csv"
+            "file_dependency.csv",
         )
 
         kmeans_path = os.path.join(
             PROCESSED_DATA_DIR,
-            "kmeans_cluster.csv"
+            "kmeans_cluster.csv",
         )
 
         dbscan_path = os.path.join(
             PROCESSED_DATA_DIR,
-            "dbscan_clustered.csv"
+            "dbscan_clustered.csv",
         )
 
         spark_path = os.path.join(
             PROCESSED_DATA_DIR,
-            "spark_file_analytics.csv"
+            "spark_file_analytics.csv",
         )
 
-        dependency_df = pd.read_csv(
-            dependency_path
-        )
-
-        kmeans_df = pd.read_csv(
-            kmeans_path
-        )
-
-        dbscan_df = pd.read_csv(
-            dbscan_path
-        )
-
-        spark_df = pd.read_csv(
-            spark_path
-        )
+        dependency_df = pd.read_csv(dependency_path)
+        kmeans_df = pd.read_csv(kmeans_path)
+        dbscan_df = pd.read_csv(dbscan_path)
+        spark_df = pd.read_csv(spark_path)
 
         return (
             dependency_df,
@@ -364,23 +273,15 @@ def load_aiee_datasets():
         )
 
     except FileNotFoundError as e:
-
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Required AIEE dataset is missing: "
-                f"{str(e)}"
-            ),
+            detail=f"Required AIEE dataset is missing: {e}",
         )
 
     except Exception as e:
-
         raise HTTPException(
             status_code=500,
-            detail=(
-                "AIEE datasets could not be loaded: "
-                f"{str(e)}"
-            ),
+            detail=f"AIEE datasets could not be loaded: {e}",
         )
 
 
@@ -392,11 +293,10 @@ def validate_repository_history_dataset():
 
     dependency_path = os.path.join(
         PROCESSED_DATA_DIR,
-        "file_dependency.csv"
+        "file_dependency.csv",
     )
 
     if not os.path.exists(dependency_path):
-
         raise HTTPException(
             status_code=500,
             detail=(
@@ -406,767 +306,414 @@ def validate_repository_history_dataset():
         )
 
     try:
-
-        dependency_df = pd.read_csv(
-            dependency_path
-        )
+        dependency_df = pd.read_csv(dependency_path)
 
     except Exception as e:
-
         raise HTTPException(
             status_code=500,
             detail=(
-                "Repository dependency dataset "
-                f"could not be read: {str(e)}"
+                "Could not read repository history dataset: "
+                f"{e}"
             ),
         )
 
-    required_columns = {
-        "file_a",
-        "file_b",
-        "count",
-    }
-
-    missing_columns = (
-        required_columns
-        - set(dependency_df.columns)
-    )
-
-    if missing_columns:
-
+    if dependency_df.empty:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Repository dependency dataset "
-                "has missing columns: "
-                f"{sorted(missing_columns)}"
-            ),
+            detail="Repository history dataset is empty.",
         )
 
     return dependency_df
 
 
 # ============================================================
-# Validate ML Pipeline Datasets
-# ============================================================
-
-def validate_ml_pipeline_datasets():
-
-    required_files = [
-        "feature_dataset.csv",
-        "kmeans_cluster.csv",
-        "dbscan_clustered.csv",
-        "spark_file_analytics.csv",
-    ]
-
-    missing_files = []
-
-    for file_name in required_files:
-
-        file_path = os.path.join(
-            PROCESSED_DATA_DIR,
-            file_name
-        )
-
-        if not os.path.exists(file_path):
-
-            missing_files.append(
-                file_name
-            )
-
-    if missing_files:
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Repository ML pipeline did not generate "
-                "the required datasets: "
-                f"{missing_files}"
-            ),
-        )
-
-    return True
-
-
-# ============================================================
-# AIEE Repository Analysis
+# Repository Analysis Endpoint
 # ============================================================
 
 @app.post("/analyze")
 async def analyze_repository(
-    repo: str,
     request: Request,
+    repo: str,
 ):
-
-    print("\n" + "=" * 70)
-    print("AIEE REPOSITORY ANALYSIS")
-    print("=" * 70)
-
-    print(
-        "\nRepository:",
-        repo,
-    )
+    """
+    Analyze a GitHub repository and return:
+    - Changed files
+    - Historical co-change relationships
+    - KMeans and DBSCAN clustering information
+    - Risk scores
+    - Recommended potentially affected files
+    """
 
     db = None
 
     try:
-
-        # ====================================================
-        # STEP 0: Get PostgreSQL GitHub Session
-        # ====================================================
-
-        session_id = request.cookies.get(
-            "aiee_session"
-        )
-
         # ----------------------------------------------------
-        # Check cookie
+        # Authenticate using cookie or Bearer session
         # ----------------------------------------------------
 
-        if not session_id:
-
-            raise HTTPException(
-                status_code=401,
-                detail=(
-                    "GitHub authentication required. "
-                    "Please login with GitHub first."
-                ),
-            )
-
-        # ----------------------------------------------------
-        # Retrieve PostgreSQL session
-        # ----------------------------------------------------
-
-        db, session = get_authenticated_session(
-            request
-        )
+        db, session = get_authenticated_session(request)
 
         if not session:
-
             raise HTTPException(
                 status_code=401,
                 detail=(
-                    "GitHub session expired. "
-                    "Please login again."
+                    "Authentication required. Please sign in "
+                    "with GitHub and try again."
                 ),
             )
-
-        # ----------------------------------------------------
-        # Get PostgreSQL user
-        # ----------------------------------------------------
 
         user = session.user
 
         if not user:
-
             raise HTTPException(
                 status_code=401,
-                detail=(
-                    "Associated GitHub user was not found. "
-                    "Please login again."
-                ),
+                detail="The authenticated GitHub user was not found.",
             )
 
         # ----------------------------------------------------
-        # Get OAuth access token
+        # Validate repository input
         # ----------------------------------------------------
 
-        access_token = session.access_token
+        repo = repo.strip()
 
-        if not access_token:
-
+        if not repo:
             raise HTTPException(
-                status_code=401,
-                detail=(
-                    "GitHub access token is not available. "
-                    "Please login again."
-                ),
+                status_code=400,
+                detail="Repository name or URL is required.",
             )
-
-        print(
-            "\nGitHub user:",
-            user.github_username
-        )
-
-        print(
-            "GitHub OAuth token available:",
-            bool(access_token)
-        )
-
-        # ====================================================
-        # STEP 1: Detect Latest GitHub Changes
-        # ====================================================
-
-        try:
-
-            print(
-                "\nStarting GitHub change detection..."
-            )
-
-            changed_files = detect_changes(
-                repo,
-                access_token
-            )
-
-            print(
-                "GitHub change detection completed."
-            )
-
-        except ValueError as e:
-
-            print(
-                "\nGitHub change detection error:",
-                str(e)
-            )
-
-            raise HTTPException(
-                status_code=401,
-                detail=str(e),
-            )
-
-        except Exception as e:
-
-            print(
-                "\nGitHub change detection error:",
-                str(e)
-            )
-
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    "GitHub change detection failed: "
-                    f"{str(e)}"
-                ),
-            )
-
-        # ====================================================
-        # STEP 2: Check Changed Files
-        # ====================================================
-
-        if not changed_files:
-
-            print(
-                "\nNo changed files detected."
-            )
-
-            return {
-                "repository": repo,
-                "status": "no_changes",
-                "authenticated_user":
-                    user.github_username,
-                "changed_files": [],
-                "total_recommendations": 0,
-                "recommendations": [],
-            }
-
-        print(
-            "\nChanged files:"
-        )
-
-        for file_name in changed_files:
-
-            print(
-                " -",
-                file_name
-            )
-
-        # ====================================================
-        # STEP 3: Generate Repository-Specific History
-        # ====================================================
 
         print("\n" + "=" * 70)
-        print("AIEE REPOSITORY HISTORY ANALYSIS")
+        print("AIEE REPOSITORY ANALYSIS")
         print("=" * 70)
+        print("Repository:", repo)
+        print("Authenticated user:", user.github_username)
 
-        print(
-            "\nBuilding historical datasets for:",
-            repo
-        )
+        # ----------------------------------------------------
+        # STEP 1: Detect recent repository changes
+        # ----------------------------------------------------
 
-        try:
+        changes_result = detect_changes(repo)
 
-            history_result = (
-                detect_repository_history(
-                    repo,
-                    access_token,
-                    max_commits=500
-                )
+        if isinstance(changes_result, dict):
+            changed_files = changes_result.get(
+                "changed_files", []
             )
+        else:
+            changed_files = changes_result or []
 
-            print(
-                "\nRepository historical data "
-                "generated successfully."
-            )
+        # ----------------------------------------------------
+        # STEP 2: Analyze repository history
+        # ----------------------------------------------------
 
-            print(
-                "Commits processed:",
-                history_result[
-                    "commits_processed"
-                ]
-            )
+        history_result = detect_repository_history(repo)
 
-            print(
-                "Unique files:",
-                history_result[
-                    "unique_files"
-                ]
-            )
-
-            print(
-                "Co-change relationships:",
-                history_result[
-                    "co_change_relationships"
-                ]
-            )
-
-        except ValueError as e:
-
-            print(
-                "\nRepository history generation error:",
-                str(e)
-            )
-
-            raise HTTPException(
-                status_code=401,
-                detail=str(e),
-            )
-
-        except Exception as e:
-
-            print(
-                "\nRepository history generation error:",
-                str(e)
-            )
-
+        if not isinstance(history_result, dict):
             raise HTTPException(
                 status_code=500,
                 detail=(
-                    "Repository historical data "
-                    "generation failed: "
-                    f"{str(e)}"
-                ),
-            )
-
-        # ====================================================
-        # STEP 4: Validate Repository History Dataset
-        # ====================================================
-
-        print(
-            "\nValidating repository-specific "
-            "historical dataset..."
-        )
-
-        repository_dependency_df = (
-            validate_repository_history_dataset()
-        )
-
-        print(
-            "Repository dependency dataset "
-            "validated successfully."
-        )
-
-        print(
-            "Historical relationships:",
-            len(repository_dependency_df)
-        )
-
-        # ====================================================
-        # STEP 5: Run Repository ML Pipeline
-        # ====================================================
-
-        print("\n" + "=" * 70)
-        print("AIEE REPOSITORY ML PIPELINE")
-        print("=" * 70)
-
-        print(
-            "\nRunning repository-specific "
-            "machine learning pipeline..."
-        )
-
-        try:
-
-            ml_result = (
-                run_repository_ml_pipeline()
-            )
-
-            print(
-                "\nRepository ML pipeline "
-                "completed successfully."
-            )
-
-            if isinstance(ml_result, dict):
-
-                for key, value in ml_result.items():
-
-                    print(
-                        f"{key}:",
-                        value
-                    )
-
-        except Exception as e:
-
-            print(
-                "\nRepository ML pipeline error:",
-                str(e)
-            )
-
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    "Repository ML pipeline failed: "
-                    f"{str(e)}"
-                ),
-            )
-
-        # ====================================================
-        # STEP 6: Validate ML Pipeline Output
-        # ====================================================
-
-        print(
-            "\nValidating ML pipeline datasets..."
-        )
-
-        validate_ml_pipeline_datasets()
-
-        print(
-            "ML pipeline datasets validated successfully."
-        )
-
-        # ====================================================
-        # STEP 7: Load Repository-Specific AIEE Datasets
-        # ====================================================
-
-        try:
-
-            (
-                dependency_df,
-                kmeans_df,
-                dbscan_df,
-                spark_df,
-            ) = load_aiee_datasets()
-
-        except HTTPException:
-
-            raise
-
-        except Exception as e:
-
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    "AIEE datasets could not be loaded: "
-                    f"{str(e)}"
+                    "Repository history analysis returned "
+                    "an unexpected result."
                 ),
             )
 
         # ----------------------------------------------------
-        # file_dependency.csv is generated from the selected
-        # repository, therefore it is repository-specific.
+        # STEP 3: Generate ML datasets
         # ----------------------------------------------------
 
-        dependency_df = repository_dependency_df
+        pipeline_result = run_repository_ml_pipeline(repo)
 
-        print(
-            "\nAIEE datasets loaded successfully."
+        # ----------------------------------------------------
+        # STEP 4: Load generated datasets
+        # ----------------------------------------------------
+
+        (
+            dependency_df,
+            kmeans_df,
+            dbscan_df,
+            spark_df,
+        ) = load_aiee_datasets()
+
+        # ----------------------------------------------------
+        # STEP 5: Validate dependency dataset
+        # ----------------------------------------------------
+
+        dependency_df = validate_repository_history_dataset()
+
+        # ----------------------------------------------------
+        # STEP 6: Build file lookup structures
+        # ----------------------------------------------------
+
+        dependency_columns = set(dependency_df.columns)
+        kmeans_columns = set(kmeans_df.columns)
+        dbscan_columns = set(dbscan_df.columns)
+        spark_columns = set(spark_df.columns)
+
+        # Find compatible column names from the generated files.
+        def find_column(columns, candidates):
+            for candidate in candidates:
+                if candidate in columns:
+                    return candidate
+            return None
+
+        dependency_file_col = find_column(
+            dependency_columns,
+            ["file", "file_path", "source_file", "filename"],
         )
 
-        print(
-            "Dependency relationships:",
-            len(dependency_df)
+        dependency_related_col = find_column(
+            dependency_columns,
+            [
+                "related_file",
+                "target_file",
+                "dependent_file",
+                "co_changed_file",
+            ],
         )
 
-        print(
-            "KMeans records:",
-            len(kmeans_df)
+        dependency_count_col = find_column(
+            dependency_columns,
+            [
+                "dependency_count",
+                "co_change_count",
+                "count",
+                "frequency",
+            ],
         )
 
-        print(
-            "DBSCAN records:",
-            len(dbscan_df)
+        kmeans_file_col = find_column(
+            kmeans_columns,
+            ["file", "file_path", "filename"],
         )
 
-        print(
-            "File analytics records:",
-            len(spark_df)
+        kmeans_cluster_col = find_column(
+            kmeans_columns,
+            ["kmeans_cluster", "cluster", "cluster_label"],
         )
 
-        # ====================================================
-        # STEP 8: KMeans Helper
-        # ====================================================
+        dbscan_file_col = find_column(
+            dbscan_columns,
+            ["file", "file_path", "filename"],
+        )
 
-        def get_kmeans_cluster(file_name):
+        dbscan_cluster_col = find_column(
+            dbscan_columns,
+            ["dbscan_cluster", "cluster", "cluster_label"],
+        )
 
-            if "file_name" not in kmeans_df.columns:
+        spark_file_col = find_column(
+            spark_columns,
+            ["file", "file_path", "filename"],
+        )
 
-                return None
+        spark_frequency_col = find_column(
+            spark_columns,
+            [
+                "file_frequency",
+                "change_frequency",
+                "commit_count",
+                "change_count",
+                "frequency",
+            ],
+        )
 
-            row = kmeans_df[
-                kmeans_df["file_name"] == file_name
-            ]
+        # ----------------------------------------------------
+        # STEP 7: Validate required columns
+        # ----------------------------------------------------
 
-            if row.empty:
+        if not dependency_file_col:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "The dependency dataset does not contain "
+                    "a recognized file column."
+                ),
+            )
 
-                return None
+        if not kmeans_file_col or not kmeans_cluster_col:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "The KMeans dataset is missing its file "
+                    "or cluster column."
+                ),
+            )
 
-            try:
+        if not dbscan_file_col or not dbscan_cluster_col:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "The DBSCAN dataset is missing its file "
+                    "or cluster column."
+                ),
+            )
 
-                return int(
-                    row.iloc[0]["cluster"]
-                )
+        # ----------------------------------------------------
+        # STEP 8: Build file-to-cluster mappings
+        # ----------------------------------------------------
 
-            except Exception:
+        kmeans_mapping = {}
 
-                return None
+        for _, row in kmeans_df.iterrows():
+            file_name = str(row[kmeans_file_col])
+            cluster = row[kmeans_cluster_col]
+            kmeans_mapping[file_name] = cluster
 
-        # ====================================================
-        # STEP 9: DBSCAN Helper
-        # ====================================================
+        dbscan_mapping = {}
 
-        def get_dbscan_cluster(file_name):
+        for _, row in dbscan_df.iterrows():
+            file_name = str(row[dbscan_file_col])
+            cluster = row[dbscan_cluster_col]
+            dbscan_mapping[file_name] = cluster
 
-            if "file_name" not in dbscan_df.columns:
+        # ----------------------------------------------------
+        # STEP 9: Build file-frequency mapping
+        # ----------------------------------------------------
 
-                return None
+        frequency_mapping = {}
 
-            row = dbscan_df[
-                dbscan_df["file_name"] == file_name
-            ]
+        if spark_file_col and spark_frequency_col:
+            for _, row in spark_df.iterrows():
+                file_name = str(row[spark_file_col])
 
-            if row.empty:
+                try:
+                    frequency = int(row[spark_frequency_col])
+                except (ValueError, TypeError):
+                    frequency = 0
 
-                return None
+                frequency_mapping[file_name] = frequency
 
-            try:
+        # ----------------------------------------------------
+        # STEP 10: Build dependency lookup
+        # ----------------------------------------------------
 
-                return int(
-                    row.iloc[0]["cluster"]
-                )
+        dependency_mapping = {}
 
-            except Exception:
+        if dependency_related_col:
+            for _, row in dependency_df.iterrows():
+                source_file = str(row[dependency_file_col])
+                target_file = str(row[dependency_related_col])
 
-                return None
+                if dependency_count_col:
+                    try:
+                        count = int(row[dependency_count_col])
+                    except (ValueError, TypeError):
+                        count = 1
+                else:
+                    count = 1
 
-        # ====================================================
-        # STEP 10: File Frequency Helper
-        # ====================================================
+                dependency_mapping[
+                    (source_file, target_file)
+                ] = count
 
-        def get_file_frequency(file_name):
+                dependency_mapping[
+                    (target_file, source_file)
+                ] = count
 
-            if "file_name" not in spark_df.columns:
-
-                return 0
-
-            row = spark_df[
-                spark_df["file_name"] == file_name
-            ]
-
-            if row.empty:
-
-                return 0
-
-            try:
-
-                return int(
-                    row.iloc[0]["file_changes"]
-                )
-
-            except Exception:
-
-                return 0
-
-        # ====================================================
-        # STEP 11: Hybrid Recommendation
-        # ====================================================
+        # ----------------------------------------------------
+        # STEP 11: Calculate recommendations
+        # ----------------------------------------------------
 
         recommendations = []
 
+        changed_files = [
+            str(file_name)
+            for file_name in changed_files
+            if file_name
+        ]
+
+        all_files = set()
+
+        all_files.update(kmeans_mapping.keys())
+        all_files.update(dbscan_mapping.keys())
+        all_files.update(frequency_mapping.keys())
+
+        if dependency_related_col:
+            all_files.update(
+                dependency_df[dependency_file_col]
+                .dropna()
+                .astype(str)
+                .tolist()
+            )
+            all_files.update(
+                dependency_df[dependency_related_col]
+                .dropna()
+                .astype(str)
+                .tolist()
+            )
+
         for changed_file in changed_files:
+            for affected_file in all_files:
 
-            print(
-                f"\nAnalyzing changed file: "
-                f"{changed_file}"
-            )
+                if affected_file == changed_file:
+                    continue
 
-            # ------------------------------------------------
-            # Find historically related files
-            # ------------------------------------------------
-
-            related = dependency_df[
-                (
-                    dependency_df["file_a"]
-                    == changed_file
-                )
-                |
-                (
-                    dependency_df["file_b"]
-                    == changed_file
-                )
-            ].copy()
-
-            if related.empty:
-
-                print(
-                    "No historical dependencies found."
+                dependency_score = dependency_mapping.get(
+                    (changed_file, affected_file),
+                    0,
                 )
 
-                continue
+                frequency_score = frequency_mapping.get(
+                    affected_file,
+                    0,
+                )
 
-            print(
-                "Historical dependencies found:",
-                len(related)
-            )
-
-            # ------------------------------------------------
-            # Current file clustering
-            # ------------------------------------------------
-
-            current_kmeans = (
-                get_kmeans_cluster(
+                changed_kmeans = kmeans_mapping.get(
                     changed_file
                 )
-            )
 
-            current_dbscan = (
-                get_dbscan_cluster(
+                affected_kmeans = kmeans_mapping.get(
+                    affected_file
+                )
+
+                changed_dbscan = dbscan_mapping.get(
                     changed_file
                 )
-            )
 
-            # ------------------------------------------------
-            # Analyze related files
-            # ------------------------------------------------
-
-            for _, row in related.iterrows():
-
-                if row["file_a"] == changed_file:
-
-                    affected_file = row["file_b"]
-
-                else:
-
-                    affected_file = row["file_a"]
-
-                # =============================================
-                # Related File Information
-                # =============================================
-
-                affected_kmeans = (
-                    get_kmeans_cluster(
-                        affected_file
-                    )
+                affected_dbscan = dbscan_mapping.get(
+                    affected_file
                 )
-
-                affected_dbscan = (
-                    get_dbscan_cluster(
-                        affected_file
-                    )
-                )
-
-                file_frequency = (
-                    get_file_frequency(
-                        affected_file
-                    )
-                )
-
-                # =============================================
-                # KMeans Similarity
-                # =============================================
 
                 same_kmeans = (
-                    current_kmeans is not None
+                    changed_kmeans is not None
                     and affected_kmeans is not None
-                    and current_kmeans == affected_kmeans
+                    and str(changed_kmeans) == str(affected_kmeans)
                 )
-
-                # =============================================
-                # DBSCAN Similarity
-                # =============================================
 
                 same_dbscan = (
-                    current_dbscan is not None
+                    changed_dbscan is not None
                     and affected_dbscan is not None
-                    and current_dbscan != -1
-                    and affected_dbscan != -1
-                    and current_dbscan == affected_dbscan
+                    and str(changed_dbscan) == str(affected_dbscan)
                 )
 
-                # =============================================
-                # Dependency Score
-                # =============================================
-
-                try:
-
-                    dependency_score = int(
-                        row["count"]
-                    )
-
-                except Exception:
-
-                    dependency_score = 0
-
-                # =============================================
-                # File Frequency Score
-                # =============================================
-
-                frequency_score = int(
-                    file_frequency
-                )
-
-                # =============================================
-                # Hybrid Score
-                # =============================================
+                # Ignore files without any evidence of a relationship.
+                if not (
+                    dependency_score > 0
+                    or frequency_score > 0
+                    or same_kmeans
+                    or same_dbscan
+                    or affected_dbscan == -1
+                ):
+                    continue
 
                 final_score = (
-                    dependency_score
+                    dependency_score * 5
                     + frequency_score
+                    + (10 if same_kmeans else 0)
+                    + (5 if same_dbscan else 0)
+                    + (5 if affected_dbscan == -1 else 0)
                 )
 
-                # ------------------------------------------------
-                # KMeans Bonus
-                # ------------------------------------------------
-
-                if same_kmeans:
-
-                    final_score += 5
-
-                # ------------------------------------------------
-                # DBSCAN Bonus
-                # ------------------------------------------------
-
-                if same_dbscan:
-
-                    final_score += 3
-
-                # ------------------------------------------------
-                # DBSCAN Outlier Signal
-                # ------------------------------------------------
-
-                # DBSCAN outlier status is informational only.
-                # It does not affect the final risk score.
-
-                # =============================================
-                # Risk Level
-                # =============================================
-
-                risk_level = get_risk_level(
-                    final_score
-                )
-
-                # =============================================
-                # Explanation
-                # =============================================
+                risk_level = get_risk_level(final_score)
 
                 reasons = []
 
                 if dependency_score > 0:
-
                     reasons.append(
                         "historically changed together "
                         f"{dependency_score} times"
                     )
 
                 if frequency_score > 0:
-
                     reasons.append(
                         "file changed "
                         f"{frequency_score} times "
@@ -1174,346 +721,136 @@ async def analyze_repository(
                     )
 
                 if same_kmeans:
-
                     reasons.append(
-                        "both files belong to the same "
-                        "KMeans cluster"
+                        "both files belong to the same KMeans cluster"
                     )
 
                 if same_dbscan:
-
                     reasons.append(
-                        "both files belong to the same "
-                        "DBSCAN cluster"
+                        "both files belong to the same DBSCAN cluster"
                     )
 
                 if affected_dbscan == -1:
-
                     reasons.append(
-                        "file is identified as a "
-                        "DBSCAN outlier"
+                        "file is identified as a DBSCAN outlier"
                     )
 
                 if not reasons:
-
-                    reasons.append(
-                        "historical relationship detected"
-                    )
-
-                explanation = ". ".join(
-                    reasons
-                )
-
-                # =============================================
-                # Store Recommendation
-                # =============================================
+                    reasons.append("historical relationship detected")
 
                 recommendations.append({
-
-                    "changed_file":
-                        changed_file,
-
-                    "affected_file":
-                        affected_file,
-
-                    "risk_level":
-                        risk_level,
-
-                    "final_score":
-                        final_score,
-
-                    "dependency_count":
-                        dependency_score,
-
-                    "file_frequency":
-                        frequency_score,
-
-                    "kmeans_cluster":
-                        affected_kmeans,
-
-                    "dbscan_cluster":
-                        affected_dbscan,
-
-                    "same_kmeans_cluster":
-                        same_kmeans,
-
-                    "same_dbscan_cluster":
-                        same_dbscan,
-
-                    "reason":
-                        explanation,
+                    "changed_file": changed_file,
+                    "affected_file": affected_file,
+                    "risk_level": risk_level,
+                    "final_score": final_score,
+                    "dependency_count": dependency_score,
+                    "file_frequency": frequency_score,
+                    "kmeans_cluster": affected_kmeans,
+                    "dbscan_cluster": affected_dbscan,
+                    "same_kmeans_cluster": same_kmeans,
+                    "same_dbscan_cluster": same_dbscan,
+                    "reason": ". ".join(reasons),
                 })
 
-        # ====================================================
-        # STEP 12: Aggregate Recommendations by Affected File
-        # ====================================================
+        # ----------------------------------------------------
+        # STEP 12: Aggregate by affected file
+        # ----------------------------------------------------
 
         aggregated_recommendations = {}
 
         for recommendation in recommendations:
+            affected_file = recommendation["affected_file"]
 
-            affected_file = (
-                recommendation["affected_file"]
-            )
-
-            if (
-                affected_file
-                not in aggregated_recommendations
-            ):
-
-                aggregated_recommendations[
-                    affected_file
-                ] = {
+            if affected_file not in aggregated_recommendations:
+                aggregated_recommendations[affected_file] = {
                     **recommendation,
                     "changed_files": [
                         recommendation["changed_file"]
                     ],
                 }
+                continue
 
-            else:
+            existing = aggregated_recommendations[affected_file]
 
-                existing = (
-                    aggregated_recommendations[
-                        affected_file
-                    ]
-                )
+            changed_file = recommendation["changed_file"]
 
-                # ------------------------------------------------
-                # Add changed file if not already present
-                # ------------------------------------------------
+            if changed_file not in existing["changed_files"]:
+                existing["changed_files"].append(changed_file)
 
-                changed_file = (
-                    recommendation["changed_file"]
-                )
-
-                if (
-                    changed_file
-                    not in existing["changed_files"]
+            if (
+                recommendation["final_score"]
+                > existing["final_score"]
+            ):
+                for key in (
+                    "risk_level",
+                    "final_score",
+                    "dependency_count",
+                    "file_frequency",
+                    "kmeans_cluster",
+                    "dbscan_cluster",
+                    "same_kmeans_cluster",
+                    "same_dbscan_cluster",
+                    "reason",
                 ):
-
-                    existing["changed_files"].append(
-                        changed_file
-                    )
-
-                # ------------------------------------------------
-                # Keep strongest score
-                # ------------------------------------------------
-
-                if (
-                    recommendation["final_score"]
-                    >
-                    existing["final_score"]
-                ):
-
-                    existing["risk_level"] = (
-                        recommendation["risk_level"]
-                    )
-
-                    existing["final_score"] = (
-                        recommendation["final_score"]
-                    )
-
-                    existing["dependency_count"] = (
-                        recommendation[
-                            "dependency_count"
-                        ]
-                    )
-
-                    existing["file_frequency"] = (
-                        recommendation[
-                            "file_frequency"
-                        ]
-                    )
-
-                    existing["kmeans_cluster"] = (
-                        recommendation[
-                            "kmeans_cluster"
-                        ]
-                    )
-
-                    existing["dbscan_cluster"] = (
-                        recommendation[
-                            "dbscan_cluster"
-                        ]
-                    )
-
-                    existing["same_kmeans_cluster"] = (
-                        recommendation[
-                            "same_kmeans_cluster"
-                        ]
-                    )
-
-                    existing["same_dbscan_cluster"] = (
-                        recommendation[
-                            "same_dbscan_cluster"
-                        ]
-                    )
-
-                    existing["reason"] = (
-                        recommendation["reason"]
-                    )
+                    existing[key] = recommendation[key]
 
         recommendations = list(
             aggregated_recommendations.values()
         )
 
-        # ====================================================
-        # STEP 13: Sort Recommendations
-        # ====================================================
-
         recommendations.sort(
-            key=lambda item:
-                item["final_score"],
+            key=lambda item: item["final_score"],
             reverse=True,
         )
 
-        # ====================================================
-        # STEP 14: Display Results
-        # ====================================================
+        # ----------------------------------------------------
+        # STEP 13: Return API response
+        # ----------------------------------------------------
 
-        print(
-            "\n" + "=" * 70
-        )
-
-        print(
-            "AIEE ANALYSIS RESULTS"
-        )
-
-        print(
-            "=" * 70
-        )
-
-        if not recommendations:
-
-            print(
-                "\nNo potentially related files found."
-            )
-
-        else:
-
-            print(
-                f"\nTotal recommendations: "
-                f"{len(recommendations)}"
-            )
-
-            for recommendation in (
-                recommendations[:20]
-            ):
-
-                print(
-                    f"\n"
-                    f"{recommendation['affected_file']} | "
-                    f"Risk: "
-                    f"{recommendation['risk_level']} | "
-                    f"Score: "
-                    f"{recommendation['final_score']} | "
-                    f"Dependency: "
-                    f"{recommendation['dependency_count']} | "
-                    f"Frequency: "
-                    f"{recommendation['file_frequency']} | "
-                    f"KMeans: "
-                    f"{recommendation['kmeans_cluster']} | "
-                    f"DBSCAN: "
-                    f"{recommendation['dbscan_cluster']}"
-                )
-
-                print(
-                    "Affected by changed files:",
-                    ", ".join(
-                        recommendation[
-                            "changed_files"
-                        ]
-                    )
-                )
-
-                print(
-                    "Reason:",
-                    recommendation["reason"]
-                )
-
-        # ====================================================
-        # STEP 15: API Response
-        # ====================================================
+        print("\n" + "=" * 70)
+        print("AIEE ANALYSIS RESULTS")
+        print("=" * 70)
+        print("Total recommendations:", len(recommendations))
 
         return {
-
-            "repository":
-                repo,
-
-            "status":
-                "analysis_completed",
-
-            "authenticated_user":
-                user.github_username,
-
-            "changed_files":
-                changed_files,
-
+            "repository": repo,
+            "status": "analysis_completed",
+            "authenticated_user": user.github_username,
+            "changed_files": changed_files,
             "historical_analysis": {
-
-                "commits_processed":
-                    history_result[
-                        "commits_processed"
-                    ],
-
-                "unique_files":
-                    history_result[
-                        "unique_files"
-                    ],
-
-                "co_change_relationships":
-                    history_result[
-                        "co_change_relationships"
-                    ],
+                "commits_processed": history_result.get(
+                    "commits_processed", 0
+                ),
+                "unique_files": history_result.get(
+                    "unique_files", 0
+                ),
+                "co_change_relationships": history_result.get(
+                    "co_change_relationships", 0
+                ),
             },
-
             "ml_pipeline": {
-
-                "feature_dataset":
-                    "generated",
-
-                "kmeans":
-                    "generated",
-
-                "dbscan":
-                    "generated",
-
-                "file_analytics":
-                    "generated",
+                "feature_dataset": "generated",
+                "kmeans": "generated",
+                "dbscan": "generated",
+                "file_analytics": "generated",
+                "pipeline_result": pipeline_result,
             },
-
-            "total_recommendations":
-                len(recommendations),
-
-            "recommendations":
-                recommendations[:20],
+            "total_recommendations": len(recommendations),
+            "recommendations": recommendations[:20],
         }
 
     except HTTPException:
-
         raise
 
     except Exception as e:
-
-        print(
-            "\nUnexpected AIEE analysis error:",
-            str(e)
-        )
+        print("\nUnexpected AIEE analysis error:", str(e))
 
         raise HTTPException(
             status_code=500,
-            detail=(
-                "AIEE repository analysis failed: "
-                f"{str(e)}"
-            ),
+            detail=f"AIEE repository analysis failed: {str(e)}",
         )
 
     finally:
-
-        # ----------------------------------------------------
-        # Always close PostgreSQL connection
-        # ----------------------------------------------------
-
         if db is not None:
             db.close()
 
@@ -1523,7 +860,6 @@ async def analyze_repository(
 # ============================================================
 
 if __name__ == "__main__":
-
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
