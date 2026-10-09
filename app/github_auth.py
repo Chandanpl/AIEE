@@ -513,14 +513,14 @@ async def github_callback(
     # ========================================================
 
     response.set_cookie(
-        key="aiee_session",
-        value=session_id,
-        httponly=True,
-        samesite="lax",
-        secure=False,
-        max_age=3600,
-        path="/",
-    )
+    key="aiee_session",
+    value=session_id,  # Use your existing session ID variable
+    httponly=True,
+    secure=True,
+    samesite="none",
+    max_age=3600,
+    path="/",
+)
 
     print("\n" + "=" * 60)
     print("AIEE SESSION COOKIE CREATED")
