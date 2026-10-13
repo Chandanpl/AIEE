@@ -405,7 +405,7 @@ async def analyze_repository(
         # STEP 2: Analyze repository history
         # ----------------------------------------------------
 
-        history_result = detect_repository_history(repo)
+        history_result = detect_repository_history(repo,session.access_token)
 
         if not isinstance(history_result, dict):
             raise HTTPException(
