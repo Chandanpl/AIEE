@@ -420,10 +420,10 @@ async def analyze_repository(
         # STEP 3: Generate ML datasets
         # ----------------------------------------------------
 
-        pipeline_result = run_repository_ml_pipeline(repo)
+        pipeline_result = run_repository_ml_pipeline()
 
         # ----------------------------------------------------
-        # STEP 4: Load generated datasets
+        # STEP 4: Load generated datasetsu
         # ----------------------------------------------------
 
         (
