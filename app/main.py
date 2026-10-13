@@ -457,7 +457,7 @@ async def analyze_repository(
 
         dependency_file_col = find_column(
             dependency_columns,
-            ["file", "file_path", "source_file", "filename"],
+            ["file", "file_path", "source_file", "filename","file_a"],
         )
 
         dependency_related_col = find_column(
@@ -467,6 +467,7 @@ async def analyze_repository(
                 "target_file",
                 "dependent_file",
                 "co_changed_file",
+                "file_b",
             ],
         )
 
