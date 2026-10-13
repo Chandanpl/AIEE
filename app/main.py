@@ -483,7 +483,7 @@ async def analyze_repository(
 
         kmeans_file_col = find_column(
             kmeans_columns,
-            ["file", "file_path", "filename"],
+            ["file", "file_path", "filename","file_name"],
         )
 
         kmeans_cluster_col = find_column(
@@ -493,7 +493,7 @@ async def analyze_repository(
 
         dbscan_file_col = find_column(
             dbscan_columns,
-            ["file", "file_path", "filename"],
+            ["file", "file_path", "filename","file_name"],
         )
 
         dbscan_cluster_col = find_column(
