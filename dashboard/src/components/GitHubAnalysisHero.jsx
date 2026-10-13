@@ -1,6 +1,117 @@
 import React, { useState, useEffect } from "react";
 
 /**
+ * Clean monochrome SVG icons for the 9 AIEE pipeline stages
+ * Uniform 24x24 viewBox, 2px stroke, monochrome currentColor.
+ */
+function StageIcon({ id, className = "stage-svg-icon" }) {
+  const commonProps = {
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className,
+    "aria-hidden": "true",
+  };
+
+  switch (id) {
+    case "auth":
+      // Minimalist auth / key icon
+      return (
+        <svg {...commonProps}>
+          <path d="M21 2l-2 2m-1.5 1.5L14 9l-1.5-1.5L11 9l-1-1-4 4a5 5 0 1 0 7 7l4-4 1 1 1.5-1.5L18 15l3.5-3.5a2.12 2.12 0 0 0 0-3L21 2z" />
+          <circle cx="7.5" cy="16.5" r="1.5" />
+        </svg>
+      );
+    case "connection":
+      // Minimalist repository connection / git-branch icon
+      return (
+        <svg {...commonProps}>
+          <line x1="6" y1="3" x2="6" y2="15" />
+          <circle cx="18" cy="6" r="3" />
+          <circle cx="6" cy="18" r="3" />
+          <path d="M18 9a9 9 0 0 1-9 9" />
+        </svg>
+      );
+    case "history":
+      // Minimalist git commit history icon
+      return (
+        <svg {...commonProps}>
+          <circle cx="12" cy="12" r="4" />
+          <line x1="1" y1="12" x2="8" y2="12" />
+          <line x1="16" y1="12" x2="23" y2="12" />
+        </svg>
+      );
+    case "changes":
+      // Minimalist file diff / change detection icon
+      return (
+        <svg {...commonProps}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="9" y1="13" x2="15" y2="13" />
+          <line x1="9" y1="17" x2="13" y2="17" />
+        </svg>
+      );
+    case "deps":
+      // Minimalist dependency topology graph icon
+      return (
+        <svg {...commonProps}>
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
+      );
+    case "kmeans":
+      // Minimalist clustering partition icon
+      return (
+        <svg {...commonProps}>
+          <circle cx="7" cy="7" r="3" />
+          <circle cx="17" cy="7" r="2.5" />
+          <circle cx="12" cy="17" r="3" />
+          <path d="M7 10l3 4" strokeDasharray="2 2" />
+          <path d="M17 9.5l-3 4.5" strokeDasharray="2 2" />
+        </svg>
+      );
+    case "dbscan":
+      // Minimalist spatial density crosshair icon
+      return (
+        <svg {...commonProps}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="3" />
+          <line x1="12" y1="1" x2="12" y2="5" />
+          <line x1="12" y1="19" x2="12" y2="23" />
+        </svg>
+      );
+    case "risk":
+      // Minimalist hybrid risk shield icon
+      return (
+        <svg {...commonProps}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      );
+    case "report":
+      // Minimalist report / analytics summary icon
+      return (
+        <svg {...commonProps}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <polyline points="9 15 11 17 15 13" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
  * The 9 official AIEE analysis stages
  */
 const PIPELINE_STAGES = [
@@ -8,8 +119,6 @@ const PIPELINE_STAGES = [
     id: "auth",
     number: "01",
     label: "GitHub Authentication",
-    shortLabel: "OAuth",
-    icon: "🔑",
     desc: "OAuth handshake & token verification",
     svgX: 500,
     svgY: 80,
@@ -20,8 +129,6 @@ const PIPELINE_STAGES = [
     id: "connection",
     number: "02",
     label: "Repository Connection",
-    shortLabel: "Repo Link",
-    icon: "🔗",
     desc: "Target repo tree inspection",
     svgX: 763,
     svgY: 134,
@@ -32,8 +139,6 @@ const PIPELINE_STAGES = [
     id: "history",
     number: "03",
     label: "Git History Mining",
-    shortLabel: "History Mining",
-    icon: "⛏️",
     desc: "Extract commit diffs & co-changes",
     svgX: 903,
     svgY: 270,
@@ -44,8 +149,6 @@ const PIPELINE_STAGES = [
     id: "changes",
     number: "04",
     label: "Changed File Detection",
-    shortLabel: "Changed Files",
-    icon: "📁",
     desc: "Latest commit file modifications",
     svgX: 855,
     svgY: 425,
@@ -56,8 +159,6 @@ const PIPELINE_STAGES = [
     id: "deps",
     number: "05",
     label: "Dependency Graph Analysis",
-    shortLabel: "Dependency Graph",
-    icon: "🕸️",
     desc: "Import & coupling topology",
     svgX: 640,
     svgY: 526,
@@ -68,8 +169,6 @@ const PIPELINE_STAGES = [
     id: "kmeans",
     number: "06",
     label: "KMeans Clustering",
-    shortLabel: "KMeans ML",
-    icon: "🧬",
     desc: "Behavioral frequency partitioning",
     svgX: 360,
     svgY: 526,
@@ -80,8 +179,6 @@ const PIPELINE_STAGES = [
     id: "dbscan",
     number: "07",
     label: "DBSCAN Clustering",
-    shortLabel: "DBSCAN ML",
-    icon: "🎯",
     desc: "Density-based propagation groups",
     svgX: 145,
     svgY: 425,
@@ -92,8 +189,6 @@ const PIPELINE_STAGES = [
     id: "risk",
     number: "08",
     label: "Hybrid Risk Scoring",
-    shortLabel: "Risk Scoring",
-    icon: "⚡",
     desc: "Multi-heuristic risk evaluation",
     svgX: 97,
     svgY: 270,
@@ -104,8 +199,6 @@ const PIPELINE_STAGES = [
     id: "report",
     number: "09",
     label: "Impact Report Generation",
-    shortLabel: "Impact Report",
-    icon: "📊",
     desc: "Actionable recommendations & rankings",
     svgX: 237,
     svgY: 134,
@@ -115,9 +208,9 @@ const PIPELINE_STAGES = [
 ];
 
 /**
- * GitHub Octocat Logo SVG
+ * GitHub Octocat Logo SVG (Borderless floating emblem)
  */
-export function GitHubIcon({ size = 52, className = "" }) {
+export function GitHubIcon({ size = 62, className = "" }) {
   return (
     <svg
       width={size}
@@ -149,9 +242,6 @@ export default function GitHubAnalysisHero({
 
   // Cycling highlight for pipeline representation
   useEffect(() => {
-    // When analyzing: rapidly cycle through stages (450ms)
-    // When idle: gently step through stages (1400ms)
-    // When completed: hold or pause
     const intervalTime = loading || analysisStatus === "analyzing" ? 450 : 1400;
 
     const interval = setInterval(() => {
@@ -236,6 +326,11 @@ export default function GitHubAnalysisHero({
 
       {/* ORBITAL CANVAS CONTAINER */}
       <div className="orbital-canvas-wrap">
+        {/* DYNAMIC FLOATING AIEE TITLE (WATERMARK AMBIENT ANIMATION) */}
+        <div className="floating-aiee-title-wrap" aria-hidden="true">
+          <span className="floating-aiee-title">AI-Evolution-Engine</span>
+        </div>
+
         {/* SVG DATA FLOW & ORBIT LAYER */}
         <svg
           className="orbital-svg-layer"
@@ -253,8 +348,8 @@ export default function GitHubAnalysisHero({
               fx="50%"
               fy="50%"
             >
-              <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.32" />
-              <stop offset="60%" stopColor="#22D3EE" stopOpacity="0.12" />
+              <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.28" />
+              <stop offset="50%" stopColor="#60A5FA" stopOpacity="0.1" />
               <stop offset="100%" stopColor="#081423" stopOpacity="0" />
             </radialGradient>
 
@@ -299,7 +394,7 @@ export default function GitHubAnalysisHero({
           <circle
             cx="500"
             cy="310"
-            r="180"
+            r="190"
             fill="url(#heroHubGlow)"
             className="hub-ambient-glow"
           />
@@ -381,7 +476,7 @@ export default function GitHubAnalysisHero({
           })}
         </svg>
 
-        {/* CENTRAL GITHUB HUB */}
+        {/* CENTRAL GITHUB ENGINE (BOX & BORDERLESS FLOATING HUB) */}
         <div
           className={`github-central-hub ${
             !authenticated ? "hub-unauthenticated" : ""
@@ -391,20 +486,23 @@ export default function GitHubAnalysisHero({
               : ""
           } ${analysisStatus === "completed" ? "hub-completed" : ""}`}
         >
-          {/* Animated concentric decorative rings */}
-          <div className="hub-pulse-ring ring-outer" aria-hidden="true"></div>
-          <div className="hub-pulse-ring ring-inner" aria-hidden="true"></div>
-          <div className="hub-core-backlight" aria-hidden="true"></div>
+          {/* Subtle decorative orbital rings & ambient light behind the logo */}
+          <div className="hub-orbital-ring ring-outer" aria-hidden="true"></div>
+          <div className="hub-orbital-ring ring-mid" aria-hidden="true"></div>
+          <div className="hub-orbital-ring ring-inner" aria-hidden="true"></div>
+          <div className="hub-core-ambient-light" aria-hidden="true"></div>
 
-          {/* Main GitHub Glass Disk */}
-          <div className="hub-core-disc">
+          {/* Floating GitHub Logo directly on the animated background */}
+          <div className="hub-floating-logo-wrap">
             <GitHubIcon
-              size={52}
+              size={62}
               className="hub-github-svg"
             />
+          </div>
 
+          {/* Distinct separate engine status label beneath the logo */}
+          <div className="hub-status-container">
             <span className="hub-brand-name">GitHub Engine</span>
-
             <div className={`hub-state-badge ${hubStatus.labelClass}`}>
               <span
                 className={`hub-state-dot ${hubStatus.dotClass}`}
@@ -415,7 +513,7 @@ export default function GitHubAnalysisHero({
           </div>
         </div>
 
-        {/* 9 FLOATING STAGE LABELS (GLASSMORPHISM CARDS) */}
+        {/* 9 FLOATING STAGE LABELS (GLASSMORPHISM CARDS WITH ZERO EMOJIS) */}
         <div
           className="pipeline-stages-container"
           role="region"
@@ -452,8 +550,8 @@ export default function GitHubAnalysisHero({
                     <span className="stage-num-badge">
                       {stage.number}
                     </span>
-                    <span className="stage-icon-emoji" aria-hidden="true">
-                      {stage.icon}
+                    <span className="stage-icon-indicator" aria-hidden="true">
+                      <StageIcon id={stage.id} />
                     </span>
                   </div>
 
@@ -516,10 +614,10 @@ export default function GitHubAnalysisHero({
           </div>
 
           <div className="pipeline-engines-row">
-            <span className="engine-chip">⚡ Git History</span>
-            <span className="engine-chip">🕸️ Dependency Matrix</span>
-            <span className="engine-chip">🧬 KMeans &amp; DBSCAN</span>
-            <span className="engine-chip">🎯 Hybrid Risk Scoring</span>
+            <span className="engine-chip">Git History</span>
+            <span className="engine-chip">Dependency Matrix</span>
+            <span className="engine-chip">KMeans &amp; DBSCAN</span>
+            <span className="engine-chip">Hybrid Risk Scoring</span>
           </div>
         </div>
       )}

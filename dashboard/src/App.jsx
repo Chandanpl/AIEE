@@ -9,6 +9,7 @@ import LegalModal from "./components/LegalModal";
 import ThemeToggle from "./components/ThemeToggle";
 import GitHubAnalysisHero from "./components/GitHubAnalysisHero";
 import WelcomeToast from "./components/WelcomeToast";
+import CursorWaveEffect from "./components/CursorWaveEffect";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
@@ -355,6 +356,9 @@ function App() {
 
   return (
     <div className="app">
+      {/* INTERACTIVE CURSOR WAVE / LIQUID LIGHT EFFECT */}
+      <CursorWaveEffect theme={theme} />
+
       {/* TOPBAR HEADER */}
       <header className="topbar" role="banner">
         <div className="topbar-left">
@@ -1392,19 +1396,19 @@ function App() {
       {/* FOOTER */}
       <footer role="contentinfo">
         <div className="developer-credit">
-          <img
-            src={chandanPhoto}
-            alt="Chandan P L"
-            className="developer-photo"
-          />
-          <span className="developer-text">
-            <span>Developed by</span>
+          <div className="developer-photo-wrap">
+            <img
+              src={chandanPhoto}
+              alt="Chandan P L"
+              className="developer-photo"
+            />
+            <span className="developer-photo-ring" aria-hidden="true"></span>
+          </div>
+          <div className="developer-text">
+            <span className="developer-label">Engineered by</span>
             <strong className="developer-name">Chandan P L</strong>
-            <span className="developer-divider" aria-hidden="true">
-              |
-            </span>
-            <span className="developer-role">AI/ML Engineer</span>
-          </span>
+            <span className="developer-role-badge">AI/ML Engineer</span>
+          </div>
         </div>
 
         <p className="footer-tagline">
