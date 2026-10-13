@@ -41,6 +41,7 @@ import {
   IconSliders,
   IconRefresh,
   IconMessageSquare,
+  IconMail,
 } from "./components/Icons";
 
 const API_BASE_URL =
@@ -1938,6 +1939,18 @@ function App() {
               <IconExternalLink size={12} />
             </span>
           </a>
+
+          <a
+            href="mailto:chandan2914ac@gmail.com"
+            className="footer-contact-btn"
+            aria-label="Send email to Chandan P L"
+            title="Contact Chandan P L (chandan2914ac@gmail.com)"
+          >
+            <span className="contact-icon-wrap" aria-hidden="true">
+              <IconMail size={15} />
+            </span>
+            <span className="contact-btn-text">Contact</span>
+          </a>
         </div>
 
         <p className="footer-tagline">
@@ -1973,6 +1986,16 @@ function App() {
           >
             Privacy Policy
           </button>
+          <span className="footer-dot" aria-hidden="true">
+            •
+          </span>
+          <a
+            href="mailto:chandan2914ac@gmail.com"
+            className="footer-link-btn"
+            title="Contact Chandan P L (chandan2914ac@gmail.com)"
+          >
+            Contact
+          </a>
           <span className="footer-dot" aria-hidden="true">
             •
           </span>

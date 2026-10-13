@@ -2923,6 +2923,75 @@ footer {
   color: #0A66C2;
 }
 
+/* Contact Email button in footer */
+.footer-contact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.32);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: all var(--transition-normal);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.contact-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-cyan);
+  transition: transform var(--transition-fast);
+}
+
+.contact-btn-text {
+  color: var(--text-primary);
+  transition: color var(--transition-fast);
+}
+
+.footer-contact-btn:hover {
+  background: rgba(34, 211, 238, 0.18);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 4px 18px rgba(34, 211, 238, 0.28), 0 0 12px rgba(96, 165, 250, 0.2);
+  transform: translateY(-2px);
+}
+
+.footer-contact-btn:hover .contact-icon-wrap {
+  transform: scale(1.12);
+}
+
+.footer-contact-btn:hover .contact-btn-text {
+  color: #FFFFFF;
+}
+
+/* Light theme overrides for Contact button */
+[data-theme="light"] .footer-contact-btn {
+  background: rgba(8, 145, 178, 0.08);
+  border-color: rgba(8, 145, 178, 0.28);
+  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.08);
+}
+
+[data-theme="light"] .footer-contact-btn .contact-icon-wrap {
+  color: #0891B2;
+}
+
+[data-theme="light"] .footer-contact-btn:hover {
+  background: rgba(8, 145, 178, 0.15);
+  border-color: #0891B2;
+  box-shadow: 0 4px 14px rgba(8, 145, 178, 0.2);
+}
+
+[data-theme="light"] .footer-contact-btn:hover .contact-btn-text {
+  color: #0891B2;
+}
+
 .developer-credit {
   display: inline-flex;
   align-items: center;
@@ -3027,7 +3096,9 @@ footer {
 .footer-links {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .footer-link-btn {
@@ -3037,6 +3108,7 @@ footer {
   font-size: 12px;
   cursor: pointer;
   padding: 0;
+  text-decoration: none;
   transition: color var(--transition-fast);
 }
 
@@ -6318,6 +6390,14 @@ summary:focus-visible {
   .top-feedback-btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .developer-credit-section {
+    gap: 12px;
+  }
+
+  .footer-links {
+    gap: 8px 12px;
   }
 }
 
