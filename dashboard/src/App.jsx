@@ -43,29 +43,21 @@ function App() {
   const [tableSearch, setTableSearch] = useState("");
   const [copiedFile, setCopiedFile] = useState(null);
 
-  // Profile state with localStorage persistence
-  const [profile, setProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem("aiee_user_profile");
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.error("Failed to load profile from localStorage:", e);
-    }
-
-    return {
-      displayName: "Chandan P L",
-      photoUrl: chandanPhoto,
-    };
+  // Profile information belongs to the currently authenticated account.
+  const [profile, setProfile] = useState({
+    displayName: "",
+    photoUrl: "",
   });
+
+  const getProfileStorageKey = (username) =>
+    `aiee_user_profile_${(username || "").toLowerCase()}`;
 
   // Theme state with localStorage persistence (default dark)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem("aiee_theme") || "dark";
   });
 
-  // Modals & Menu visibility
+  // Modals and menu visibility
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -84,10 +76,22 @@ function App() {
   }, [theme]);
 
   const handleSaveProfile = (newProfile) => {
-    setProfile(newProfile);
+    const updatedProfile = {
+      ...profile,
+      ...newProfile,
+      // Keep the current account's avatar if the modal omits it.
+      photoUrl: newProfile?.photoUrl || profile.photoUrl,
+    };
+
+    setProfile(updatedProfile);
 
     try {
-      localStorage.setItem("aiee_user_profile", JSON.stringify(newProfile));
+      if (githubUser) {
+        localStorage.setItem(
+          getProfileStorageKey(githubUser),
+          JSON.stringify(updatedProfile)
+        );
+      }
     } catch (e) {
       console.error("Failed to save profile to localStorage:", e);
     }
@@ -103,7 +107,7 @@ function App() {
   useEffect(() => {
     const checkAuthentication = async () => {
       try {
-        // Capture the AIEE session ID returned by the OAuth callback.
+        // Read the AIEE session ID returned by the OAuth callback.
         const fragment = window.location.hash.startsWith("#")
           ? window.location.hash.slice(1)
           : window.location.hash;
@@ -142,17 +146,53 @@ function App() {
         }
 
         if (data.authenticated) {
+          const username = data.github_user || data.login || "";
+          const githubName = data.name || username || "GitHub User";
+
+          const githubAvatar =
+            data.avatar_url ||
+            data.avatar ||
+            (username
+              ? `https://github.com/${encodeURIComponent(username)}.png`
+              : "");
+
           setAuthenticated(true);
-          setGithubUser(data.github_user || data.name || "");
+          setGithubUser(username);
+
+          // Load saved profile settings for this GitHub account only.
+          let savedProfile = null;
+
+          try {
+            const saved = username
+              ? localStorage.getItem(getProfileStorageKey(username))
+              : null;
+
+            if (saved) {
+              savedProfile = JSON.parse(saved);
+            }
+          } catch (profileError) {
+            console.error(
+              "Failed to load saved profile:",
+              profileError
+            );
+          }
+
+          setProfile({
+            displayName: savedProfile?.displayName || githubName,
+            // Prefer the avatar returned for the current GitHub account.
+            photoUrl: githubAvatar || savedProfile?.photoUrl || "",
+          });
         } else {
           setAuthenticated(false);
           setGithubUser("");
+          setProfile({ displayName: "", photoUrl: "" });
           sessionStorage.removeItem(AIEE_SESSION_KEY);
         }
       } catch (error) {
         console.error("Authentication check failed:", error);
         setAuthenticated(false);
         setGithubUser("");
+        setProfile({ displayName: "", photoUrl: "" });
       } finally {
         setAuthLoading(false);
       }
@@ -184,6 +224,7 @@ function App() {
       sessionStorage.removeItem(AIEE_SESSION_KEY);
       setAuthenticated(false);
       setGithubUser("");
+      setProfile({ displayName: "", photoUrl: "" });
       setResult(null);
     }
   };
@@ -245,7 +286,7 @@ function App() {
   };
 
   // =========================================================
-  // RISK HELPERS & COUNTS
+  // RISK HELPERS AND COUNTS
   // =========================================================
   const getRiskClass = (risk) => {
     if (risk === "HIGH") return "risk-high";
@@ -254,12 +295,15 @@ function App() {
   };
 
   const recommendations = result?.recommendations || [];
+
   const highRiskCount = recommendations.filter(
     (r) => r.risk_level === "HIGH"
   ).length;
+
   const mediumRiskCount = recommendations.filter(
     (r) => r.risk_level === "MEDIUM"
   ).length;
+
   const lowRiskCount = recommendations.filter(
     (r) => r.risk_level === "LOW"
   ).length;
@@ -280,9 +324,7 @@ function App() {
 
   return (
     <div className="app">
-      {/* ===================================================
-          TOPBAR HEADER
-      =================================================== */}
+      {/* TOPBAR HEADER */}
       <header className="topbar" role="banner">
         <div className="topbar-left">
           <AIEELogo
@@ -346,9 +388,7 @@ function App() {
               <button
                 type="button"
                 className="profile-trigger-btn"
-                onClick={() =>
-                  setProfileMenuOpen((prev) => !prev)
-                }
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
                 aria-haspopup="menu"
                 aria-expanded={profileMenuOpen}
                 id="user-profile-trigger"
@@ -372,6 +412,7 @@ function App() {
                   <span className="profile-trigger-name">
                     {profile?.displayName || githubUser || "User"}
                   </span>
+
                   {githubUser && (
                     <span className="profile-trigger-tag">
                       @{githubUser}
@@ -427,9 +468,7 @@ function App() {
           )}
         </div>
       </header>
-	      {/* ===================================================
-          MAIN CONTENT
-      =================================================== */}
+	      {/* MAIN CONTENT */}
       <main className="container" id="main-content">
         {/* HERO SECTION */}
         <section className="hero" aria-labelledby="hero-heading">
@@ -712,7 +751,8 @@ function App() {
             </span>
           </section>
         )}
-	        {/* RESULTS SECTION */}
+
+        {/* RESULTS SECTION */}
         {result && !loading && (
           <section
             className="results"
@@ -747,7 +787,7 @@ function App() {
                     <path
                       fillRule="evenodd"
                       clipRule="evenodd"
-                      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
                     />
                   </svg>
 
@@ -784,8 +824,7 @@ function App() {
                 </button>
               </div>
             </div>
-
-            {/* SUMMARY METRICS */}
+	            {/* SUMMARY METRICS */}
             <div className="summary-grid">
               <div className="summary-card">
                 <div className="summary-card-header">
@@ -1046,7 +1085,8 @@ function App() {
                 )}
               </div>
             </div>
-	            {/* POTENTIALLY AFFECTED FILES TABLE */}
+
+            {/* POTENTIALLY AFFECTED FILES TABLE */}
             <div className="data-card">
               <div className="data-card-header table-card-header">
                 <div>
@@ -1217,8 +1257,7 @@ function App() {
                 </table>
               </div>
             </div>
-
-            {/* IMPACT EXPLANATIONS */}
+	            {/* IMPACT EXPLANATIONS */}
             <div className="data-card">
               <div className="data-card-header">
                 <div>
