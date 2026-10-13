@@ -236,6 +236,7 @@ export default function GitHubAnalysisHero({
   analysisStatus = "idle", // "idle" | "analyzing" | "completed" | "error"
   loading = false,
   onLogin,
+  compact = false,
 }) {
   const [activeStageIndex, setActiveStageIndex] = useState(0);
   const [hoveredStage, setHoveredStage] = useState(null);
@@ -293,8 +294,10 @@ export default function GitHubAnalysisHero({
   return (
     <section
       className={`github-analysis-hero ${
-        loading || analysisStatus === "analyzing" ? "is-analyzing" : ""
-      } ${analysisStatus === "completed" ? "is-completed" : ""}`}
+        compact ? "hero-compact-mode" : ""
+      } ${loading || analysisStatus === "analyzing" ? "is-analyzing" : ""} ${
+        analysisStatus === "completed" ? "is-completed" : ""
+      }`}
       aria-labelledby="pipeline-hero-title"
     >
       {/* HEADER BAR */}
@@ -302,7 +305,7 @@ export default function GitHubAnalysisHero({
         <div className="hero-eyebrow-wrap">
           <span className="hero-circuit-dot" aria-hidden="true"></span>
           <span className="hero-eyebrow-text">
-            AIEE ARCHITECTURE · 9-STAGE REPOSITORY INTELLIGENCE
+            {compact ? "9-STAGE ORBITAL PIPELINE" : "AIEE ARCHITECTURE · 9-STAGE REPOSITORY INTELLIGENCE"}
           </span>
         </div>
 
@@ -495,7 +498,7 @@ export default function GitHubAnalysisHero({
           {/* Floating GitHub Logo directly on the animated background */}
           <div className="hub-floating-logo-wrap">
             <GitHubIcon
-              size={62}
+              size={compact ? 42 : 62}
               className="hub-github-svg"
             />
           </div>

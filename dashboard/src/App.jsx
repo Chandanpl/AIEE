@@ -10,6 +10,33 @@ import ThemeToggle from "./components/ThemeToggle";
 import GitHubAnalysisHero from "./components/GitHubAnalysisHero";
 import WelcomeToast from "./components/WelcomeToast";
 import CursorWaveEffect from "./components/CursorWaveEffect";
+import {
+  IconGitHub,
+  IconSearch,
+  IconFileCode,
+  IconFileText,
+  IconGitCommit,
+  IconHistory,
+  IconLayers,
+  IconTarget,
+  IconShield,
+  IconShieldAlert,
+  IconShieldCheck,
+  IconAlertTriangle,
+  IconCheck,
+  IconCheckCircle,
+  IconX,
+  IconCopy,
+  IconLock,
+  IconExternalLink,
+  IconChevronDown,
+  IconArrowRight,
+  IconCpu,
+  IconNetwork,
+  IconDatabase,
+  IconSliders,
+  IconRefresh,
+} from "./components/Icons";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
@@ -18,7 +45,6 @@ const API_BASE_URL =
     : "http://127.0.0.1:8000");
 
 const GITHUB_LOGIN_URL = `${API_BASE_URL}/auth/github/login`;
-
 const AIEE_SESSION_KEY = "aiee_session_id";
 
 function getAuthHeaders() {
@@ -115,23 +141,17 @@ function App() {
   useEffect(() => {
     const checkAuthentication = async () => {
       try {
-        // Read the AIEE session ID returned by the OAuth callback.
         const fragment = window.location.hash.startsWith("#")
           ? window.location.hash.slice(1)
           : window.location.hash;
 
         if (fragment) {
           const fragmentParams = new URLSearchParams(fragment);
-          const sessionFromCallback =
-            fragmentParams.get("aiee_session");
+          const sessionFromCallback = fragmentParams.get("aiee_session");
 
           if (sessionFromCallback) {
-            sessionStorage.setItem(
-              AIEE_SESSION_KEY,
-              sessionFromCallback
-            );
+            sessionStorage.setItem(AIEE_SESSION_KEY, sessionFromCallback);
 
-            // Remove the session ID from the address bar.
             window.history.replaceState(
               null,
               document.title,
@@ -148,9 +168,7 @@ function App() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(
-            data.detail || "Could not verify authentication."
-          );
+          throw new Error(data.detail || "Could not verify authentication.");
         }
 
         if (data.authenticated) {
@@ -167,9 +185,7 @@ function App() {
           setAuthenticated(true);
           setGithubUser(username);
 
-          // Load saved profile settings for this GitHub account only.
           let savedProfile = null;
-
           try {
             const saved = username
               ? localStorage.getItem(getProfileStorageKey(username))
@@ -179,10 +195,7 @@ function App() {
               savedProfile = JSON.parse(saved);
             }
           } catch (profileError) {
-            console.error(
-              "Failed to load saved profile:",
-              profileError
-            );
+            console.error("Failed to load saved profile:", profileError);
           }
 
           const finalDisplayName = savedProfile?.displayName || githubName;
@@ -190,11 +203,9 @@ function App() {
 
           setProfile({
             displayName: finalDisplayName,
-            // Prefer the avatar returned for the current GitHub account.
             photoUrl: finalAvatar,
           });
 
-          // Trigger welcome notification only once upon authenticated transition
           if (!welcomeTriggeredRef.current && (username || githubName)) {
             welcomeTriggeredRef.current = true;
             setWelcomeUser({
@@ -207,10 +218,9 @@ function App() {
           setAuthenticated(false);
           setGithubUser("");
           setProfile({ displayName: "", photoUrl: "" });
-          sessionStorage.removeItem(AIEE_SESSION_KEY);
         }
-      } catch (error) {
-        console.error("Authentication check failed:", error);
+      } catch (authError) {
+        console.warn("Auth check failed:", authError.message);
         setAuthenticated(false);
         setGithubUser("");
         setProfile({ displayName: "", photoUrl: "" });
@@ -223,30 +233,28 @@ function App() {
   }, []);
 
   // =========================================================
-  // GITHUB LOGIN
+  // GITHUB LOGIN / LOGOUT
   // =========================================================
   const loginWithGitHub = () => {
     window.location.href = GITHUB_LOGIN_URL;
   };
 
-  // =========================================================
-  // GITHUB LOGOUT
-  // =========================================================
   const logout = async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/github/logout`, {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
         headers: getAuthHeaders(),
       });
-    } catch (error) {
-      console.error("Logout failed:", error);
+    } catch (e) {
+      console.error("Logout request error:", e);
     } finally {
       sessionStorage.removeItem(AIEE_SESSION_KEY);
       setAuthenticated(false);
       setGithubUser("");
       setProfile({ displayName: "", photoUrl: "" });
       setResult(null);
+      setError("");
       welcomeTriggeredRef.current = false;
       setWelcomeUser(null);
       setAnalysisStatus("idle");
@@ -267,7 +275,7 @@ function App() {
 
     if (!repo.trim()) {
       setError(
-        "Please enter a GitHub repository URL or repository slug (e.g. owner/repo)."
+        "Please enter a GitHub repository URL or slug (e.g. owner/repo)."
       );
       setAnalysisStatus("error");
       return;
@@ -297,9 +305,6 @@ function App() {
 
       setResult(data);
       setAnalysisStatus("completed");
-      setTimeout(() => {
-        setAnalysisStatus("idle");
-      }, 3500);
     } catch (err) {
       console.error("AIEE analysis error:", err);
       setError(err.message || "Unable to connect to the AIEE backend.");
@@ -340,6 +345,39 @@ function App() {
     (r) => r.risk_level === "LOW"
   ).length;
 
+  // Calculated overall risk level directly from backend results
+  const overallRiskLevel =
+    highRiskCount > 0
+      ? "HIGH"
+      : mediumRiskCount > 0
+      ? "MEDIUM"
+      : lowRiskCount > 0
+      ? "LOW"
+      : recommendations.length > 0
+      ? "LOW"
+      : "LOW";
+
+  // Commit information safely extracted from backend payload if available
+  const commitIdentifier =
+    result?.commit?.sha ||
+    result?.commit?.id ||
+    result?.commit_sha ||
+    (result?.latest_commit ? String(result.latest_commit).substring(0, 7) : "") ||
+    "HEAD (Latest commit)";
+
+  const commitMessage =
+    result?.commit?.message ||
+    result?.commit_message ||
+    "Latest repository change detection";
+
+  const commitAuthor =
+    result?.commit?.author ||
+    result?.authenticated_user ||
+    (githubUser ? `@${githubUser}` : "Repository Committer");
+
+  const commitTimestamp =
+    result?.commit?.timestamp || "Realtime Inference";
+
   const filteredRecommendations = recommendations.filter((item) => {
     const matchesRisk =
       riskFilter === "ALL" || item.risk_level === riskFilter;
@@ -353,6 +391,8 @@ function App() {
 
     return matchesRisk && matchesSearch;
   });
+
+  const hasActiveAnalysis = loading || Boolean(result);
 
   return (
     <div className="app">
@@ -400,20 +440,7 @@ function App() {
               id="github-login-btn"
               aria-label="Login with GitHub"
             >
-              <svg
-                className="github-login-icon"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                />
-              </svg>
+              <IconGitHub size={16} />
               <span>Login with GitHub</span>
             </button>
           )}
@@ -455,14 +482,12 @@ function App() {
                   )}
                 </div>
 
-                <span
+                <IconChevronDown
+                  size={14}
                   className={`profile-trigger-arrow ${
                     profileMenuOpen ? "open" : ""
                   }`}
-                  aria-hidden="true"
-                >
-                  ▼
-                </span>
+                />
               </button>
 
               <ProfileMenu
@@ -503,917 +528,1016 @@ function App() {
           )}
         </div>
       </header>
-	      {/* MAIN CONTENT */}
-      <main className="container" id="main-content">
+
+      {/* MAIN CONTENT AREA */}
+      <main
+        className={`container ${
+          hasActiveAnalysis ? "has-active-layout" : "is-standby-layout"
+        }`}
+        id="main-content"
+      >
         {/* WELCOME TOAST NOTIFICATION */}
         <WelcomeToast
           user={welcomeUser}
           onDismiss={() => setWelcomeUser(null)}
         />
 
-        {/* ANIMATED GITHUB ANALYSIS HERO */}
-        <GitHubAnalysisHero
-          authenticated={authenticated}
-          githubUser={githubUser}
-          profile={profile}
-          analysisStatus={analysisStatus}
-          loading={loading}
-          onLogin={loginWithGitHub}
-        />
-
-        {/* REPOSITORY ANALYSIS CARD */}
-        <section
-          className="analysis-card"
-          aria-labelledby="analysis-heading"
+        {/* WORKSPACE LAYOUT (TRANSITIONS FROM FULL HERO TO 2-COLUMN SIDEBAR & REPORT) */}
+        <div
+          className={`analysis-dashboard-workspace ${
+            hasActiveAnalysis ? "has-active-analysis" : "is-standby"
+          }`}
         >
-          <div className="analysis-card-top">
-            <div>
-              <div className="analysis-label-row">
-                <h2
-                  id="analysis-heading"
-                  className="analysis-card-title"
-                >
-                  Repository Analysis
-                </h2>
-                <span className="analysis-tag">Core Engine</span>
-              </div>
-
-              <p className="analysis-card-desc">
-                Enter a GitHub repository URL to mine commit diffs
-                and compute predictive change-impact propagation.
-              </p>
-            </div>
-
-            <div className="analysis-auth-badge-wrap">
-              {authenticated ? (
-                <div
-                  className="auth-status-pill auth-connected"
-                  title="Verified GitHub Session"
-                >
-                  <span className="auth-status-dot"></span>
-                  <span>
-                    Authenticated as <strong>@{githubUser}</strong>
-                  </span>
-                </div>
-              ) : (
-                <div
-                  className="auth-status-pill auth-required"
-                  title="Login Required"
-                >
-                  <span className="auth-status-dot-amber"></span>
-                  <span>Authentication Required</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* INPUT AND ACTION ROW */}
-          <div className="input-row">
-            <div className="input-wrapper">
-              <span className="input-icon" aria-hidden="true">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                  />
-                </svg>
-              </span>
-
-              <input
-                id="repository-url-input"
-                type="text"
-                placeholder="https://github.com/username/repository or username/repository"
-                value={repo}
-                onChange={(e) => setRepo(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading && authenticated) {
-                    analyzeRepository();
-                  }
-                }}
-                disabled={loading}
-                aria-label="GitHub Repository URL"
-              />
-
-              {repo && !loading && (
-                <button
-                  type="button"
-                  className="input-clear-btn"
-                  onClick={() => setRepo("")}
-                  title="Clear input"
-                  aria-label="Clear repository input"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="analyze-button"
-              onClick={analyzeRepository}
-              disabled={loading || !authenticated || !repo.trim()}
-              id="analyze-submit-btn"
-            >
-              {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  <span>Analyzing Repository...</span>
-                </>
-              ) : (
-                <>
-                  <span>Analyze Repository</span>
-                  <span className="btn-arrow" aria-hidden="true">
-                    →
-                  </span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* QUICK SAMPLE REPOSITORIES */}
-          <div className="sample-repos-row">
-            <span className="sample-repos-label">Quick samples:</span>
-            <div className="sample-repos-chips">
-              {SAMPLE_REPOS.map((sample) => (
-                <button
-                  key={sample}
-                  type="button"
-                  className="sample-repo-pill"
-                  onClick={() =>
-                    setRepo(`https://github.com/${sample}`)
-                  }
-                  disabled={loading}
-                >
-                  {sample}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* LOGIN REQUIRED BANNER */}
-          {!authLoading && !authenticated && (
-            <div className="login-required-banner" role="alert">
-              <div className="login-required-left">
-                <span className="banner-icon">🔒</span>
-                <div>
-                  <strong>GitHub Authentication Required</strong>
-                  <p>
-                    Please connect your GitHub account to authorize
-                    repository inspection, commit history mining,
-                    and ML cluster generation.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="btn-login-inline"
-                onClick={loginWithGitHub}
-              >
-                Login with GitHub →
-              </button>
-            </div>
-          )}
-
-          {/* ERROR ALERT */}
-          {error && (
-            <div className="error-message-banner" role="alert">
-              <span className="error-icon">⚠️</span>
-              <div className="error-content">
-                <strong>Analysis Failed:</strong>
-                <span>{error}</span>
-              </div>
-              <button
-                type="button"
-                className="error-dismiss-btn"
-                onClick={() => setError("")}
-                aria-label="Dismiss error"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </section>
-
-        {/* LOADING STATE */}
-        {loading && (
-          <section className="loading-card" aria-live="polite">
-            <div className="loading-circuit-wrap">
-              <AIEEIcon
-                size={52}
-                className="pulsing-circuit-logo"
-              />
-            </div>
-
-            <h3 className="loading-title">
-              Analyzing repository architecture...
-            </h3>
-
-            <p className="loading-subtitle">
-              Mining repository commit history, building file
-              dependency matrix, and running KMeans &amp; DBSCAN
-              machine-learning models.
-            </p>
-
-            <div className="loading-steps-list">
-              <div className="loading-step active">
-                <span className="step-dot pulse"></span>
-                <span>
-                  Inspecting recent commits and file change diffs
-                </span>
-              </div>
-              <div className="loading-step active">
-                <span className="step-dot pulse"></span>
-                <span>
-                  Calculating dependency graph and co-change frequency
-                </span>
-              </div>
-              <div className="loading-step active">
-                <span className="step-dot pulse"></span>
-                <span>
-                  Executing KMeans &amp; DBSCAN clustering algorithms
-                </span>
-              </div>
-              <div className="loading-step active">
-                <span className="step-dot pulse"></span>
-                <span>
-                  Ranking potentially affected files by hybrid risk score
-                </span>
-              </div>
-            </div>
-
-            <span className="loading-hint">
-              This process typically takes 10–25 seconds for
-              repositories with rich history.
-            </span>
-          </section>
-        )}
-
-        {/* RESULTS SECTION */}
-        {result && !loading && (
-          <section
-            className="results"
-            id="analysis-results"
-            aria-label="Analysis Results"
+          {/* ORBITAL PIPELINE SECTION (HERO OR COMPACT LEFT PANEL) */}
+          <aside
+            className={`dashboard-pipeline-aside ${
+              hasActiveAnalysis ? "aside-compact-panel" : "aside-hero-prominent"
+            }`}
+            aria-label="AIEE 9-Stage Analysis Pipeline"
           >
-            {/* RESULTS HEADER */}
-            <div className="result-header-bar">
-              <div className="result-header-info">
-                <div className="result-badge-row">
-                  <span className="completed-badge">
-                    <span className="badge-dot-green"></span>
-                    Analysis Completed
-                  </span>
-                  <span className="timestamp-badge">
-                    Realtime Inference
-                  </span>
+            <GitHubAnalysisHero
+              authenticated={authenticated}
+              githubUser={githubUser}
+              profile={profile}
+              analysisStatus={analysisStatus}
+              loading={loading}
+              onLogin={loginWithGitHub}
+              compact={hasActiveAnalysis}
+            />
+          </aside>
+
+          {/* MAIN CONTENT INTERACTION COLUMN */}
+          <div className="dashboard-main-col">
+            {/* REPOSITORY INPUT BAR (STANDBY CARD OR COMPACT TOP BAR) */}
+            <section
+              className={`analysis-card ${
+                hasActiveAnalysis ? "analysis-card-compact-bar" : ""
+              }`}
+              aria-labelledby="analysis-heading"
+            >
+              {!hasActiveAnalysis && (
+                <div className="analysis-card-top">
+                  <div>
+                    <div className="analysis-label-row">
+                      <h2
+                        id="analysis-heading"
+                        className="analysis-card-title"
+                      >
+                        Repository Analysis
+                      </h2>
+                      <span className="analysis-tag">Core Engine</span>
+                    </div>
+
+                    <p className="analysis-card-desc">
+                      Enter a GitHub repository URL to mine commit diffs
+                      and compute predictive change-impact propagation.
+                    </p>
+                  </div>
+
+                  <div className="analysis-auth-badge-wrap">
+                    {authenticated ? (
+                      <div
+                        className="auth-status-pill auth-connected"
+                        title="Verified GitHub Session"
+                      >
+                        <span className="auth-status-dot"></span>
+                        <span>
+                          Authenticated as <strong>@{githubUser}</strong>
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        className="auth-status-pill auth-required"
+                        title="Login Required"
+                      >
+                        <span className="auth-status-dot-amber"></span>
+                        <span>Authentication Required</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              )}
 
-                <h2 className="result-main-title">
-                  Repository Impact Analysis
-                </h2>
-
-                <div className="repo-address-row">
-                  <svg
-                    className="repo-icon"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                    />
-                  </svg>
-
-                  <span className="repo-name">
-                    {result.repository}
+              {/* INPUT AND ACTION ROW */}
+              <div className="input-row">
+                <div className="input-wrapper">
+                  <span className="input-icon" aria-hidden="true">
+                    <IconGitHub size={17} />
                   </span>
 
-                  {result.repository?.startsWith("http") && (
-                    <a
-                      href={result.repository}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="repo-external-link"
-                      title="Open repository in GitHub"
+                  <input
+                    id="repository-url-input"
+                    type="text"
+                    placeholder="https://github.com/username/repository or username/repository"
+                    value={repo}
+                    onChange={(e) => setRepo(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !loading && authenticated) {
+                        analyzeRepository();
+                      }
+                    }}
+                    disabled={loading}
+                    aria-label="GitHub Repository URL"
+                  />
+
+                  {repo && !loading && (
+                    <button
+                      type="button"
+                      className="input-clear-btn"
+                      onClick={() => setRepo("")}
+                      title="Clear input"
+                      aria-label="Clear repository input"
                     >
-                      ↗
-                    </a>
+                      <IconX size={14} />
+                    </button>
                   )}
                 </div>
-              </div>
 
-              <div className="result-actions">
                 <button
                   type="button"
-                  className="btn-secondary btn-rerun"
-                  onClick={() => {
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                    document
-                      .getElementById("repository-url-input")
-                      ?.focus();
-                  }}
+                  className="analyze-button"
+                  onClick={analyzeRepository}
+                  disabled={loading || !authenticated || !repo.trim()}
+                  id="analyze-submit-btn"
                 >
-                  Analyze Another Repo
+                  {loading ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>Analyzing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Analyze Repository</span>
+                      <IconArrowRight size={15} className="btn-arrow" />
+                    </>
+                  )}
                 </button>
               </div>
-            </div>
-	            {/* SUMMARY METRICS */}
-            <div className="summary-grid">
-              <div className="summary-card">
-                <div className="summary-card-header">
-                  <span className="summary-label">Changed Files</span>
-                  <span className="summary-icon-chip">📝</span>
-                </div>
-                <strong className="summary-value">
-                  {result.changed_files?.length || 0}
-                </strong>
-                <small className="summary-sub">
-                  Detected in latest commit
-                </small>
-              </div>
 
-              <div className="summary-card">
-                <div className="summary-card-header">
-                  <span className="summary-label">
-                    Affected Recommendations
-                  </span>
-                  <span className="summary-icon-chip">🎯</span>
-                </div>
-                <strong className="summary-value">
-                  {result.total_recommendations ||
-                    recommendations.length}
-                </strong>
-                <small className="summary-sub">
-                  Potentially impacted files
-                </small>
-              </div>
-
-              <div className="summary-card highlight-risk">
-                <div className="summary-card-header">
-                  <span className="summary-label">High Risk Files</span>
-                  <span className="summary-icon-chip risk-alert">
-                    ⚠️
-                  </span>
-                </div>
-                <strong className="summary-value high-number">
-                  {highRiskCount}
-                </strong>
-                <small className="summary-sub">
-                  Requires prioritized code review
-                </small>
-              </div>
-
-              <div className="summary-card">
-                <div className="summary-card-header">
-                  <span className="summary-label">
-                    Historical Commits
-                  </span>
-                  <span className="summary-icon-chip">📜</span>
-                </div>
-                <strong className="summary-value">
-                  {result.historical_analysis?.commits_processed || 0}
-                </strong>
-                <small className="summary-sub">
-                  Mined for co-change relationships
-                </small>
-              </div>
-            </div>
-
-            {/* RISK OVERVIEW */}
-            <div className="risk-overview">
-              <div className="overview-header">
-                <div>
-                  <h3 className="section-title">
-                    Risk Distribution
-                  </h3>
-                  <p className="section-subtitle">
-                    Distribution of potentially affected files
-                    prioritized by AIEE risk scores.
-                  </p>
-                </div>
-
-                {recommendations.length > 0 && (
-                  <div
-                    className="risk-ratio-bar-wrap"
-                    aria-label="Risk proportions"
-                  >
-                    <div
-                      className="risk-bar-segment segment-high"
-                      style={{
-                        width: `${
-                          (highRiskCount / recommendations.length) * 100
-                        }%`,
-                      }}
-                      title={`High Risk: ${highRiskCount}`}
-                    />
-                    <div
-                      className="risk-bar-segment segment-medium"
-                      style={{
-                        width: `${
-                          (mediumRiskCount / recommendations.length) * 100
-                        }%`,
-                      }}
-                      title={`Medium Risk: ${mediumRiskCount}`}
-                    />
-                    <div
-                      className="risk-bar-segment segment-low"
-                      style={{
-                        width: `${
-                          (lowRiskCount / recommendations.length) * 100
-                        }%`,
-                      }}
-                      title={`Low Risk: ${lowRiskCount}`}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="risk-grid">
-                <div
-                  className={`risk-box high-box ${
-                    riskFilter === "HIGH" ? "active-filter" : ""
-                  }`}
-                  onClick={() =>
-                    setRiskFilter(
-                      riskFilter === "HIGH" ? "ALL" : "HIGH"
-                    )
-                  }
-                  role="button"
-                  tabIndex={0}
-                  title="Click to filter table by HIGH risk"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      setRiskFilter(
-                        riskFilter === "HIGH" ? "ALL" : "HIGH"
-                      );
-                    }
-                  }}
-                >
-                  <div className="risk-box-top">
-                    <div className="risk-title">HIGH RISK</div>
-                    <span className="risk-filter-hint">
-                      {riskFilter === "HIGH" ? "Filtered" : "Filter"}
-                    </span>
-                  </div>
-                  <div className="risk-value">{highRiskCount}</div>
-                  <span className="risk-desc">
-                    Immediate testing advised
-                  </span>
-                </div>
-
-                <div
-                  className={`risk-box medium-box ${
-                    riskFilter === "MEDIUM" ? "active-filter" : ""
-                  }`}
-                  onClick={() =>
-                    setRiskFilter(
-                      riskFilter === "MEDIUM" ? "ALL" : "MEDIUM"
-                    )
-                  }
-                  role="button"
-                  tabIndex={0}
-                  title="Click to filter table by MEDIUM risk"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      setRiskFilter(
-                        riskFilter === "MEDIUM" ? "ALL" : "MEDIUM"
-                      );
-                    }
-                  }}
-                >
-                  <div className="risk-box-top">
-                    <div className="risk-title">MEDIUM RISK</div>
-                    <span className="risk-filter-hint">
-                      {riskFilter === "MEDIUM" ? "Filtered" : "Filter"}
-                    </span>
-                  </div>
-                  <div className="risk-value">{mediumRiskCount}</div>
-                  <span className="risk-desc">
-                    Recommended validation
-                  </span>
-                </div>
-
-                <div
-                  className={`risk-box low-box ${
-                    riskFilter === "LOW" ? "active-filter" : ""
-                  }`}
-                  onClick={() =>
-                    setRiskFilter(
-                      riskFilter === "LOW" ? "ALL" : "LOW"
-                    )
-                  }
-                  role="button"
-                  tabIndex={0}
-                  title="Click to filter table by LOW risk"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      setRiskFilter(
-                        riskFilter === "LOW" ? "ALL" : "LOW"
-                      );
-                    }
-                  }}
-                >
-                  <div className="risk-box-top">
-                    <div className="risk-title">LOW RISK</div>
-                    <span className="risk-filter-hint">
-                      {riskFilter === "LOW" ? "Filtered" : "Filter"}
-                    </span>
-                  </div>
-                  <div className="risk-value">{lowRiskCount}</div>
-                  <span className="risk-desc">
-                    Indirect co-change pattern
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* LATEST CHANGED FILES */}
-            <div className="data-card">
-              <div className="data-card-header">
-                <div>
-                  <h3 className="section-title">
-                    Latest Changed Files
-                  </h3>
-                  <p className="section-subtitle">
-                    Files identified in the latest repository commit
-                    that triggered this analysis.
-                  </p>
-                </div>
-                <span className="count-badge">
-                  {result.changed_files?.length || 0}
-                </span>
-              </div>
-
-              <div className="file-list">
-                {result.changed_files &&
-                result.changed_files.length > 0 ? (
-                  result.changed_files.map((file, index) => (
-                    <div
-                      className="file-item"
-                      key={`${file}-${index}`}
+              {/* QUICK SAMPLE REPOSITORIES */}
+              <div className="sample-repos-row">
+                <span className="sample-repos-label">Quick samples:</span>
+                <div className="sample-repos-chips">
+                  {SAMPLE_REPOS.map((sample) => (
+                    <button
+                      key={sample}
+                      type="button"
+                      className="sample-repo-pill"
+                      onClick={() => setRepo(`https://github.com/${sample}`)}
+                      disabled={loading}
                     >
-                      <span className="file-index">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="file-icon" aria-hidden="true">
-                        📄
-                      </span>
-                      <span className="file-name" title={file}>
-                        {file}
-                      </span>
-                      <button
-                        type="button"
-                        className="file-copy-btn"
-                        onClick={() => copyToClipboard(file)}
-                        title="Copy file path"
-                      >
-                        {copiedFile === file ? "Copied!" : "Copy"}
-                      </button>
+                      {sample}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* LOGIN REQUIRED BANNER */}
+              {!authLoading && !authenticated && (
+                <div className="login-required-banner" role="alert">
+                  <div className="login-required-left">
+                    <span className="banner-icon-wrap" aria-hidden="true">
+                      <IconLock size={18} />
+                    </span>
+                    <div>
+                      <strong>GitHub Authentication Required</strong>
+                      <p>
+                        Please connect your GitHub account to authorize
+                        repository inspection, commit history mining,
+                        and ML cluster generation.
+                      </p>
                     </div>
-                  ))
-                ) : (
-                  <div className="empty-state-text">
-                    No changed files detected in latest commit.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* POTENTIALLY AFFECTED FILES TABLE */}
-            <div className="data-card">
-              <div className="data-card-header table-card-header">
-                <div>
-                  <h3 className="section-title">
-                    Potentially Affected Files
-                  </h3>
-                  <p className="section-subtitle">
-                    Ranked using AIEE's hybrid change-impact scoring
-                    and historical dependency heuristics.
-                  </p>
-                </div>
-
-                <div className="table-controls">
-                  <div className="table-search-wrap">
-                    <input
-                      type="text"
-                      className="table-search-input"
-                      placeholder="Search affected files..."
-                      value={tableSearch}
-                      onChange={(e) => setTableSearch(e.target.value)}
-                      aria-label="Search affected files"
-                    />
-
-                    {tableSearch && (
-                      <button
-                        type="button"
-                        className="table-search-clear"
-                        onClick={() => setTableSearch("")}
-                      >
-                        ✕
-                      </button>
-                    )}
                   </div>
 
-                  <div
-                    className="filter-button-group"
-                    role="group"
-                    aria-label="Filter by risk"
+                  <button
+                    type="button"
+                    className="btn-login-inline"
+                    onClick={loginWithGitHub}
                   >
-                    {["ALL", "HIGH", "MEDIUM", "LOW"].map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        className={`filter-btn ${
-                          riskFilter === level ? "active" : ""
-                        }`}
-                        onClick={() => setRiskFilter(level)}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-
-                  <span
-                    className="count-badge"
-                    title="Showing matching files"
-                  >
-                    {filteredRecommendations.length} /{" "}
-                    {recommendations.length}
-                  </span>
+                    <span>Login with GitHub</span>
+                    <IconArrowRight size={14} />
+                  </button>
                 </div>
-              </div>
+              )}
+            </section>
 
-              <div
-                className="table-wrapper"
-                tabIndex={0}
-                aria-label="Affected files table"
-              >
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">Affected File</th>
-                      <th scope="col">Risk Level</th>
-                      <th scope="col">Risk Score</th>
-                      <th scope="col">Dependencies</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredRecommendations.length > 0 ? (
-                      filteredRecommendations.map((item, index) => (
-                        <tr key={`${item.affected_file}-${index}`}>
-                          <td>
-                            <div className="table-file">
-                              <span className="file-symbol">#</span>
-                              <span
-                                className="table-file-path"
-                                title={item.affected_file}
-                              >
-                                {item.affected_file}
-                              </span>
-                              <button
-                                type="button"
-                                className="cell-copy-btn"
-                                onClick={() =>
-                                  copyToClipboard(item.affected_file)
-                                }
-                                title="Copy path"
-                              >
-                                {copiedFile === item.affected_file
-                                  ? "✓"
-                                  : "📋"}
-                              </button>
-                            </div>
-                          </td>
-
-                          <td>
-                            <span
-                              className={`risk-badge ${getRiskClass(
-                                item.risk_level
-                              )}`}
-                            >
-                              {item.risk_level}
-                            </span>
-                          </td>
-
-                          <td>
-                            <div className="score-cell">
-                              <strong className="score-number">
-                                {item.final_score}
-                              </strong>
-                            </div>
-                          </td>
-
-                          <td>
-                            <span className="metric-cell-value">
-                              {item.dependency_count ?? 0}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="table-empty-row">
-                          No affected files matching current filter
-                          criteria.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-	            {/* IMPACT EXPLANATIONS */}
-            <div className="data-card">
-              <div className="data-card-header">
-                <div>
-                  <h3 className="section-title">
-                    Impact Explanations
-                  </h3>
-                  <p className="section-subtitle">
-                    Algorithmic rationale explaining why AIEE
-                    identified these files as potentially affected.
-                  </p>
-                </div>
-                <span className="count-badge">
-                  {recommendations.length}
+            {/* ERROR ALERT */}
+            {error && (
+              <div className="error-message-banner" role="alert">
+                <span className="error-icon-wrap" aria-hidden="true">
+                  <IconAlertTriangle size={18} />
                 </span>
+                <div className="error-content">
+                  <strong>Analysis Paused:</strong>
+                  <span>{error}</span>
+                </div>
+                <button
+                  type="button"
+                  className="error-dismiss-btn"
+                  onClick={() => setError("")}
+                  aria-label="Dismiss error"
+                >
+                  <IconX size={14} />
+                </button>
               </div>
+            )}
 
-              <div className="recommendation-list">
-                {recommendations.map((item, index) => (
-                  <div
-                    className="recommendation-item"
-                    key={`${item.affected_file}-reason-${index}`}
-                  >
-                    <div className="recommendation-top">
-                      <div className="recommendation-file">
-                        <span className="rec-index-badge">
-                          {index + 1}
-                        </span>
-                        <strong className="rec-file-name">
-                          {item.affected_file}
-                        </strong>
+            {/* WHILE ANALYSIS IS RUNNING: DISPLAY STATUS AT TOP OF MAIN AREA */}
+            {loading && (
+              <section
+                className="loading-card main-area-loading"
+                aria-live="polite"
+              >
+                <div className="loading-top-indicator">
+                  <div className="loading-circuit-wrap">
+                    <AIEEIcon size={46} className="pulsing-circuit-logo" />
+                  </div>
+                  <div>
+                    <h3 className="loading-title">
+                      Analyzing Repository Architecture...
+                    </h3>
+                    <p className="loading-subtitle">
+                      Mining repository commit history, building file dependency
+                      matrices, and executing KMeans &amp; DBSCAN machine-learning
+                      clustering on <code>{repo}</code>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="loading-pulse-progress-bar" aria-hidden="true">
+                  <div className="loading-pulse-fill"></div>
+                </div>
+
+                <div className="loading-steps-list">
+                  <div className="loading-step active">
+                    <span className="step-dot pulse"></span>
+                    <span>Inspecting recent commits and file change diffs</span>
+                  </div>
+                  <div className="loading-step active">
+                    <span className="step-dot pulse"></span>
+                    <span>Calculating dependency graph and co-change frequency</span>
+                  </div>
+                  <div className="loading-step active">
+                    <span className="step-dot pulse"></span>
+                    <span>Executing KMeans &amp; DBSCAN clustering models</span>
+                  </div>
+                  <div className="loading-step active">
+                    <span className="step-dot pulse"></span>
+                    <span>Ranking potentially affected files by hybrid risk score</span>
+                  </div>
+                </div>
+
+                <span className="loading-hint">
+                  Analysis typically takes 10–25 seconds for repositories with
+                  extensive commit history.
+                </span>
+              </section>
+            )}
+
+            {/* AFTER ANALYSIS FINISHES: COMPACT REPORT & ACCORDION DROPDOWNS */}
+            {result && !loading && (
+              <section
+                className="results"
+                id="analysis-results"
+                aria-label="Repository Analysis Results"
+              >
+                {/* 1. COMPACT ANALYSIS SUMMARY */}
+                <div className="compact-summary-header-card">
+                  <div className="summary-header-top">
+                    <div className="summary-repo-info">
+                      <div className="summary-status-badge">
+                        <IconCheckCircle size={14} />
+                        <span>Analysis Completed</span>
                       </div>
 
-                      <div className="rec-badges-right">
-                        <span className="rec-score-pill">
-                          Score: {item.final_score}
+                      <h2 className="summary-repo-title">
+                        <IconGitHub size={22} className="summary-repo-gh-icon" />
+                        <span className="summary-repo-name">
+                          {result.repository}
                         </span>
+                        {result.repository?.startsWith("http") && (
+                          <a
+                            href={result.repository}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="repo-external-link"
+                            title="Open repository on GitHub"
+                            aria-label="Open repository on GitHub"
+                          >
+                            <IconExternalLink size={13} />
+                          </a>
+                        )}
+                      </h2>
+
+                      {/* Commit snippet line */}
+                      <div className="summary-commit-snippet">
+                        <span className="commit-snippet-item">
+                          <IconGitCommit size={14} />
+                          <code>{commitIdentifier}</code>
+                        </span>
+                        <span className="commit-snippet-dot" aria-hidden="true">
+                          •
+                        </span>
+                        <span className="commit-snippet-msg" title={commitMessage}>
+                          {commitMessage}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="summary-header-actions">
+                      {/* Overall Risk Level Badge (calculated from actual backend data) */}
+                      <div className="summary-risk-badge-wrap">
+                        <span className="summary-risk-label">Overall Risk:</span>
                         <span
-                          className={`risk-badge ${getRiskClass(
-                            item.risk_level
+                          className={`overall-risk-badge ${getRiskClass(
+                            overallRiskLevel
                           )}`}
                         >
-                          {item.risk_level}
+                          {overallRiskLevel === "HIGH" && (
+                            <IconShieldAlert size={14} />
+                          )}
+                          {overallRiskLevel === "MEDIUM" && (
+                            <IconShield size={14} />
+                          )}
+                          {overallRiskLevel === "LOW" && (
+                            <IconShieldCheck size={14} />
+                          )}
+                          <strong>{overallRiskLevel} RISK</strong>
                         </span>
                       </div>
+
+                      <button
+                        type="button"
+                        className="btn-secondary btn-rerun"
+                        onClick={() => {
+                          const inputEl = document.getElementById(
+                            "repository-url-input"
+                          );
+                          if (inputEl) {
+                            inputEl.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center",
+                            });
+                            inputEl.focus();
+                          }
+                        }}
+                      >
+                        <IconRefresh size={13} />
+                        <span>Analyze Another Repo</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4 SUMMARY METRIC CARDS */}
+                  <div className="summary-grid">
+                    <div className="summary-card">
+                      <div className="summary-card-header">
+                        <span className="summary-label">Changed Files</span>
+                        <span className="summary-icon-chip">
+                          <IconFileCode size={16} />
+                        </span>
+                      </div>
+                      <strong className="summary-value">
+                        {result.changed_files?.length || 0}
+                      </strong>
+                      <small className="summary-sub">
+                        Detected in analyzed commit
+                      </small>
                     </div>
 
-                    <p className="reason">{item.reason}</p>
+                    <div className="summary-card">
+                      <div className="summary-card-header">
+                        <span className="summary-label">
+                          Potentially Affected
+                        </span>
+                        <span className="summary-icon-chip">
+                          <IconTarget size={16} />
+                        </span>
+                      </div>
+                      <strong className="summary-value">
+                        {result.total_recommendations || recommendations.length}
+                      </strong>
+                      <small className="summary-sub">
+                        Coupled via dependencies &amp; ML
+                      </small>
+                    </div>
 
-                    {item.changed_files &&
-                      item.changed_files.length > 0 && (
-                        <div className="affected-by">
-                          <span className="affected-by-label">
-                            Triggered by changes in:
+                    <div
+                      className={`summary-card ${
+                        highRiskCount > 0 ? "highlight-risk" : ""
+                      }`}
+                    >
+                      <div className="summary-card-header">
+                        <span className="summary-label">High Risk Files</span>
+                        <span className="summary-icon-chip risk-alert">
+                          <IconShieldAlert size={16} />
+                        </span>
+                      </div>
+                      <strong
+                        className={`summary-value ${
+                          highRiskCount > 0 ? "high-number" : ""
+                        }`}
+                      >
+                        {highRiskCount}
+                      </strong>
+                      <small className="summary-sub">
+                        {highRiskCount > 0
+                          ? "Prioritized code review required"
+                          : "No critical impacts identified"}
+                      </small>
+                    </div>
+
+                    <div className="summary-card">
+                      <div className="summary-card-header">
+                        <span className="summary-label">Risk Breakdown</span>
+                        <span className="summary-icon-chip">
+                          <IconSliders size={16} />
+                        </span>
+                      </div>
+                      <div className="summary-risk-pills-row">
+                        <span className="pill-mini high">
+                          <strong>{highRiskCount}</strong> High
+                        </span>
+                        <span className="pill-mini med">
+                          <strong>{mediumRiskCount}</strong> Med
+                        </span>
+                        <span className="pill-mini low">
+                          <strong>{lowRiskCount}</strong> Low
+                        </span>
+                      </div>
+                      <small className="summary-sub">
+                        Scored across affected candidates
+                      </small>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. EXPANDABLE DROPDOWN SECTIONS (ACCORDIONS COLLAPSED BY DEFAULT) */}
+                <div
+                  className="report-accordions-group"
+                  role="region"
+                  aria-label="Detailed Analysis Sections"
+                >
+                  {/* SECTION A: COMMIT DETAILS */}
+                  <details
+                    className="report-accordion"
+                    id="accordion-commit-details"
+                  >
+                    <summary className="accordion-summary">
+                      <div className="accordion-summary-title">
+                        <span className="accordion-icon" aria-hidden="true">
+                          <IconGitCommit size={18} />
+                        </span>
+                        <div className="accordion-title-text">
+                          <strong>Commit Details</strong>
+                          <span className="accordion-subtitle">
+                            Latest analyzed commit hash, message, author &amp; file diffs
                           </span>
-                          <div className="affected-by-chips">
-                            {item.changed_files.map(
-                              (file, fileIndex) => (
-                                <span
-                                  className="mini-file"
-                                  key={`${file}-${fileIndex}`}
-                                  title={file}
-                                >
+                        </div>
+                      </div>
+
+                      <div className="accordion-summary-meta">
+                        <span className="count-badge">
+                          {result.changed_files?.length || 0} Changed Files
+                        </span>
+                        <IconChevronDown
+                          size={16}
+                          className="accordion-chevron"
+                        />
+                      </div>
+                    </summary>
+
+                    <div className="accordion-content">
+                      <div className="commit-meta-grid">
+                        <div className="commit-meta-item">
+                          <span className="commit-meta-label">
+                            Commit Identifier
+                          </span>
+                          <span className="commit-meta-val commit-hash-tag">
+                            <IconGitCommit size={13} />
+                            <code>{commitIdentifier}</code>
+                          </span>
+                        </div>
+
+                        <div className="commit-meta-item">
+                          <span className="commit-meta-label">Author</span>
+                          <span className="commit-meta-val">
+                            {commitAuthor}
+                          </span>
+                        </div>
+
+                        <div className="commit-meta-item">
+                          <span className="commit-meta-label">Timestamp</span>
+                          <span className="commit-meta-val">
+                            {commitTimestamp}
+                          </span>
+                        </div>
+
+                        <div className="commit-meta-item commit-full-width">
+                          <span className="commit-meta-label">
+                            Commit Message
+                          </span>
+                          <p className="commit-message-quote">
+                            "{commitMessage}"
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* CHANGED FILES LIST */}
+                      <div className="data-sub-card">
+                        <div className="data-sub-header">
+                          <h4 className="sub-title">Changed Files</h4>
+                          <span className="sub-count">
+                            {result.changed_files?.length || 0} modified
+                          </span>
+                        </div>
+
+                        <div className="file-list">
+                          {result.changed_files &&
+                          result.changed_files.length > 0 ? (
+                            result.changed_files.map((file, index) => (
+                              <div
+                                className="file-item"
+                                key={`${file}-${index}`}
+                              >
+                                <span className="file-index">
+                                  {String(index + 1).padStart(2, "0")}
+                                </span>
+                                <span className="file-icon" aria-hidden="true">
+                                  <IconFileCode size={15} />
+                                </span>
+                                <span className="file-name" title={file}>
                                   {file}
                                 </span>
-                              )
+                                <button
+                                  type="button"
+                                  className="file-copy-btn"
+                                  onClick={() => copyToClipboard(file)}
+                                  title="Copy file path"
+                                >
+                                  {copiedFile === file ? (
+                                    <>
+                                      <IconCheck size={12} />
+                                      <span>Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <IconCopy size={12} />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="empty-state-text">
+                              No changed files detected in latest commit.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+
+                  {/* SECTION B: AFFECTED FILES AND RISK SCORES */}
+                  <details
+                    className="report-accordion"
+                    id="accordion-affected-files"
+                  >
+                    <summary className="accordion-summary">
+                      <div className="accordion-summary-title">
+                        <span className="accordion-icon" aria-hidden="true">
+                          <IconLayers size={18} />
+                        </span>
+                        <div className="accordion-title-text">
+                          <strong>Affected Files and Risk Scores</strong>
+                          <span className="accordion-subtitle">
+                            Potentially impacted files ranked by AIEE hybrid score
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="accordion-summary-meta">
+                        <span className="count-badge">
+                          {recommendations.length} Potentially Affected
+                        </span>
+                        <IconChevronDown
+                          size={16}
+                          className="accordion-chevron"
+                        />
+                      </div>
+                    </summary>
+
+                    <div className="accordion-content">
+                      <div className="table-card-inner">
+                        <div className="table-controls">
+                          <div className="table-search-wrap">
+                            <span className="table-search-icon" aria-hidden="true">
+                              <IconSearch size={15} />
+                            </span>
+                            <input
+                              type="text"
+                              className="table-search-input"
+                              placeholder="Search affected files..."
+                              value={tableSearch}
+                              onChange={(e) => setTableSearch(e.target.value)}
+                              aria-label="Search affected files"
+                            />
+
+                            {tableSearch && (
+                              <button
+                                type="button"
+                                className="table-search-clear"
+                                onClick={() => setTableSearch("")}
+                                aria-label="Clear search"
+                              >
+                                <IconX size={13} />
+                              </button>
                             )}
                           </div>
+
+                          <div
+                            className="filter-button-group"
+                            role="group"
+                            aria-label="Filter by risk"
+                          >
+                            {["ALL", "HIGH", "MEDIUM", "LOW"].map((level) => (
+                              <button
+                                key={level}
+                                type="button"
+                                className={`filter-btn ${
+                                  riskFilter === level ? "active" : ""
+                                }`}
+                                onClick={() => setRiskFilter(level)}
+                              >
+                                {level}
+                              </button>
+                            ))}
+                          </div>
+
+                          <span
+                            className="count-badge"
+                            title="Showing matching files"
+                          >
+                            {filteredRecommendations.length} /{" "}
+                            {recommendations.length}
+                          </span>
                         </div>
-                      )}
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* MACHINE LEARNING PIPELINE */}
-            <div className="data-card">
-              <div className="data-card-header">
-                <div>
-                  <h3 className="section-title">
-                    Machine Learning Intelligence
-                  </h3>
-                  <p className="section-subtitle">
-                    Repository-specific models and historical
-                    co-change mining used by AIEE.
-                  </p>
-                </div>
-                <span className="count-badge">4 Engines</span>
-              </div>
+                        <div
+                          className="table-wrapper"
+                          tabIndex={0}
+                          aria-label="Affected files table"
+                        >
+                          <table>
+                            <thead>
+                              <tr>
+                                <th scope="col">Affected File</th>
+                                <th scope="col">Risk Level</th>
+                                <th scope="col">Risk Score</th>
+                                <th scope="col">Dependencies</th>
+                              </tr>
+                            </thead>
 
-              <div className="ml-grid">
-                <div className="ml-card">
-                  <div className="ml-card-head">
-                    <div className="ml-icon">K</div>
-                    <span className="ml-status">
-                      {result.ml_pipeline?.kmeans || "Generated"}
-                    </span>
-                  </div>
-                  <h4>KMeans Clustering</h4>
-                  <p>
-                    Partitions files into behavioral clusters based
-                    on commit frequencies and dependency graph
-                    centrality.
-                  </p>
-                </div>
+                            <tbody>
+                              {filteredRecommendations.length > 0 ? (
+                                filteredRecommendations.map((item, index) => (
+                                  <tr key={`${item.affected_file}-${index}`}>
+                                    <td>
+                                      <div className="table-file">
+                                        <span
+                                          className="file-symbol-icon"
+                                          aria-hidden="true"
+                                        >
+                                          <IconFileText size={15} />
+                                        </span>
+                                        <span
+                                          className="table-file-path"
+                                          title={item.affected_file}
+                                        >
+                                          {item.affected_file}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className="cell-copy-btn"
+                                          onClick={() =>
+                                            copyToClipboard(item.affected_file)
+                                          }
+                                          title="Copy path"
+                                        >
+                                          {copiedFile === item.affected_file ? (
+                                            <IconCheck size={13} />
+                                          ) : (
+                                            <IconCopy size={13} />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </td>
 
-                <div className="ml-card">
-                  <div className="ml-card-head">
-                    <div className="ml-icon">D</div>
-                    <span className="ml-status">
-                      {result.ml_pipeline?.dbscan || "Generated"}
-                    </span>
-                  </div>
-                  <h4>DBSCAN Clustering</h4>
-                  <p>
-                    Density-based spatial clustering that uncovers
-                    dense co-change groups and isolates outlier
-                    propagation chains.
-                  </p>
-                </div>
+                                    <td>
+                                      <span
+                                        className={`risk-badge ${getRiskClass(
+                                          item.risk_level
+                                        )}`}
+                                      >
+                                        {item.risk_level === "HIGH" && (
+                                          <IconShieldAlert size={12} />
+                                        )}
+                                        {item.risk_level === "MEDIUM" && (
+                                          <IconShield size={12} />
+                                        )}
+                                        {item.risk_level === "LOW" && (
+                                          <IconShieldCheck size={12} />
+                                        )}
+                                        <span>{item.risk_level}</span>
+                                      </span>
+                                    </td>
 
-                <div className="ml-card">
-                  <div className="ml-card-head">
-                    <div className="ml-icon">H</div>
-                    <span className="ml-status">Processed</span>
-                  </div>
-                  <h4>Repository History Mining</h4>
-                  <p>
-                    Analyzed{" "}
-                    {result.historical_analysis?.commits_processed || 0}{" "}
-                    commits, indexing{" "}
-                    {result.historical_analysis?.unique_files || 0}{" "}
-                    unique files and{" "}
-                    {result.historical_analysis?.co_change_relationships ||
-                      0}{" "}
-                    co-change associations.
-                  </p>
-                </div>
+                                    <td>
+                                      <div className="score-cell">
+                                        <strong className="score-number">
+                                          {item.final_score}
+                                        </strong>
+                                      </div>
+                                    </td>
 
-                <div className="ml-card">
-                  <div className="ml-card-head">
-                    <div className="ml-icon">F</div>
-                    <span className="ml-status">
-                      {result.ml_pipeline?.feature_dataset ||
-                        "Generated"}
-                    </span>
-                  </div>
-                  <h4>Feature Engineering</h4>
-                  <p>
-                    Extracted multi-dimensional structural features
-                    combining dependency degrees, file recency, and
-                    historical commit velocity.
-                  </p>
+                                    <td>
+                                      <span className="metric-cell-value">
+                                        {item.dependency_count ?? 0}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={4} className="table-empty-row">
+                                    No affected files matching current filter criteria.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+
+                  {/* SECTION C: WHY WERE THESE FILES FLAGGED? */}
+                  <details
+                    className="report-accordion"
+                    id="accordion-flagged-reasons"
+                  >
+                    <summary className="accordion-summary">
+                      <div className="accordion-summary-title">
+                        <span className="accordion-icon" aria-hidden="true">
+                          <IconTarget size={18} />
+                        </span>
+                        <div className="accordion-title-text">
+                          <strong>Why Were These Files Flagged?</strong>
+                          <span className="accordion-subtitle">
+                            Algorithmic rationale and trigger relationships
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="accordion-summary-meta">
+                        <span className="count-badge">
+                          {recommendations.length} Explanations
+                        </span>
+                        <IconChevronDown
+                          size={16}
+                          className="accordion-chevron"
+                        />
+                      </div>
+                    </summary>
+
+                    <div className="accordion-content">
+                      <div className="recommendation-list">
+                        {recommendations.map((item, index) => (
+                          <div
+                            className="recommendation-item"
+                            key={`${item.affected_file}-reason-${index}`}
+                          >
+                            <div className="recommendation-top">
+                              <div className="recommendation-file">
+                                <span className="rec-index-badge">
+                                  {index + 1}
+                                </span>
+                                <strong className="rec-file-name">
+                                  {item.affected_file}
+                                </strong>
+                              </div>
+
+                              <div className="rec-badges-right">
+                                <span className="rec-score-pill">
+                                  Score: {item.final_score}
+                                </span>
+                                <span
+                                  className={`risk-badge ${getRiskClass(
+                                    item.risk_level
+                                  )}`}
+                                >
+                                  {item.risk_level === "HIGH" && (
+                                    <IconShieldAlert size={12} />
+                                  )}
+                                  {item.risk_level === "MEDIUM" && (
+                                    <IconShield size={12} />
+                                  )}
+                                  {item.risk_level === "LOW" && (
+                                    <IconShieldCheck size={12} />
+                                  )}
+                                  <span>{item.risk_level}</span>
+                                </span>
+                              </div>
+                            </div>
+
+                            <p className="reason">{item.reason}</p>
+
+                            {item.changed_files &&
+                              item.changed_files.length > 0 && (
+                                <div className="affected-by">
+                                  <span className="affected-by-label">
+                                    Triggered by changes in:
+                                  </span>
+                                  <div className="affected-by-chips">
+                                    {item.changed_files.map(
+                                      (file, fileIndex) => (
+                                        <span
+                                          className="mini-file"
+                                          key={`${file}-${fileIndex}`}
+                                          title={file}
+                                        >
+                                          <IconFileCode size={11} />
+                                          <span>{file}</span>
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+
+                  {/* SECTION D: ADVANCED ML INSIGHTS */}
+                  <details
+                    className="report-accordion"
+                    id="accordion-ml-insights"
+                  >
+                    <summary className="accordion-summary">
+                      <div className="accordion-summary-title">
+                        <span className="accordion-icon" aria-hidden="true">
+                          <IconCpu size={18} />
+                        </span>
+                        <div className="accordion-title-text">
+                          <strong>Advanced ML Insights</strong>
+                          <span className="accordion-subtitle">
+                            KMeans &amp; DBSCAN clustering, commit history metrics &amp; graph embeddings
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="accordion-summary-meta">
+                        <span className="count-badge">4 Engines</span>
+                        <IconChevronDown
+                          size={16}
+                          className="accordion-chevron"
+                        />
+                      </div>
+                    </summary>
+
+                    <div className="accordion-content">
+                      <div className="ml-grid">
+                        <div className="ml-card">
+                          <div className="ml-card-head">
+                            <div className="ml-icon-wrapper" aria-hidden="true">
+                              <IconCpu size={18} />
+                            </div>
+                            <span className="ml-status">
+                              {result.ml_pipeline?.kmeans || "Generated"}
+                            </span>
+                          </div>
+                          <h4>KMeans Clustering</h4>
+                          <p>
+                            Partitions files into behavioral clusters based
+                            on commit frequencies and dependency graph
+                            centrality metrics.
+                          </p>
+                        </div>
+
+                        <div className="ml-card">
+                          <div className="ml-card-head">
+                            <div className="ml-icon-wrapper" aria-hidden="true">
+                              <IconNetwork size={18} />
+                            </div>
+                            <span className="ml-status">
+                              {result.ml_pipeline?.dbscan || "Generated"}
+                            </span>
+                          </div>
+                          <h4>DBSCAN Clustering</h4>
+                          <p>
+                            Density-based spatial clustering that uncovers
+                            dense co-change groups and isolates outlier
+                            propagation chains.
+                          </p>
+                        </div>
+
+                        <div className="ml-card">
+                          <div className="ml-card-head">
+                            <div className="ml-icon-wrapper" aria-hidden="true">
+                              <IconHistory size={18} />
+                            </div>
+                            <span className="ml-status">Processed</span>
+                          </div>
+                          <h4>Repository History Mining</h4>
+                          <p>
+                            Analyzed{" "}
+                            {result.historical_analysis?.commits_processed || 0}{" "}
+                            commits, indexing{" "}
+                            {result.historical_analysis?.unique_files || 0}{" "}
+                            unique files and{" "}
+                            {result.historical_analysis?.co_change_relationships ||
+                              0}{" "}
+                            co-change associations.
+                          </p>
+                        </div>
+
+                        <div className="ml-card">
+                          <div className="ml-card-head">
+                            <div className="ml-icon-wrapper" aria-hidden="true">
+                              <IconDatabase size={18} />
+                            </div>
+                            <span className="ml-status">
+                              {result.ml_pipeline?.feature_dataset ||
+                                "Generated"}
+                            </span>
+                          </div>
+                          <h4>Feature Engineering</h4>
+                          <p>
+                            Extracted multi-dimensional structural features
+                            combining dependency degrees, file recency, and
+                            historical commit velocity.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
                 </div>
-              </div>
-            </div>
-          </section>
-        )}
+              </section>
+            )}
+          </div>
+        </div>
       </main>
 
       {/* FOOTER */}
       <footer role="contentinfo">
-        <div className="developer-credit">
-          <div className="developer-photo-wrap">
-            <img
-              src={chandanPhoto}
-              alt="Chandan P L"
-              className="developer-photo"
-            />
-            <span className="developer-photo-ring" aria-hidden="true"></span>
+        <div className="developer-credit-section">
+          <div className="developer-credit">
+            <div className="developer-photo-wrap">
+              <img
+                src={chandanPhoto}
+                alt="Chandan P L"
+                className="developer-photo"
+              />
+              <span className="developer-photo-ring" aria-hidden="true"></span>
+            </div>
+            <div className="developer-text">
+              <span className="developer-label">Developed by</span>
+              <strong className="developer-name">Chandan P L</strong>
+              <span className="developer-role-badge">AI/ML Engineer</span>
+            </div>
           </div>
-          <div className="developer-text">
-            <span className="developer-label">Engineered by</span>
-            <strong className="developer-name">Chandan P L</strong>
-            <span className="developer-role-badge">AI/ML Engineer</span>
-          </div>
+
+          <a
+            href="https://in.linkedin.com/in/chandanpl"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="linkedin-follow-btn"
+            aria-label="Follow Chandan P L on LinkedIn"
+          >
+            <span className="linkedin-icon-wrap" aria-hidden="true">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+              </svg>
+            </span>
+            <span className="linkedin-follow-text">Follow me on LinkedIn</span>
+            <span className="linkedin-arrow" aria-hidden="true">
+              <IconExternalLink size={12} />
+            </span>
+          </a>
         </div>
 
         <p className="footer-tagline">
-          AI-Evolution-Engine · Intelligent GitHub Change Impact
-          Analysis · Enterprise Edition
+          AI-Evolution-Engine · Modular Change Impact Architecture with Machine
+          Learning Pipeline
         </p>
 
         <div className="footer-links">
@@ -1429,9 +1553,9 @@ function App() {
           >
             Terms &amp; Conditions
           </button>
-
-          <span className="footer-dot">•</span>
-
+          <span className="footer-dot" aria-hidden="true">
+            •
+          </span>
           <button
             type="button"
             className="footer-link-btn"
@@ -1444,9 +1568,9 @@ function App() {
           >
             Privacy Policy
           </button>
-
-          <span className="footer-dot">•</span>
-
+          <span className="footer-dot" aria-hidden="true">
+            •
+          </span>
           <button
             type="button"
             className="footer-link-btn"
@@ -1473,20 +1597,28 @@ function App() {
         onThemeChange={handleThemeChange}
         profile={profile}
         githubUser={githubUser}
-        onOpenProfile={() => setProfileModalOpen(true)}
-        onOpenTerms={() =>
+        onOpenProfile={() => {
+          setSettingsModalOpen(false);
+          setProfileModalOpen(true);
+        }}
+        onOpenTerms={() => {
+          setSettingsModalOpen(false);
           setLegalModalState({
             isOpen: true,
             type: "terms",
-          })
-        }
-        onOpenPrivacy={() =>
+          });
+        }}
+        onOpenPrivacy={() => {
+          setSettingsModalOpen(false);
           setLegalModalState({
             isOpen: true,
             type: "privacy",
-          })
-        }
-        onLogout={logout}
+          });
+        }}
+        onLogout={() => {
+          setSettingsModalOpen(false);
+          logout();
+        }}
       />
 
       <LegalModal

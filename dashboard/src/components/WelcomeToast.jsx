@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { IconCheck, IconX } from "./Icons";
 
 /**
  * WelcomeToast - Accessible floating notification for authenticated GitHub users
@@ -44,7 +45,7 @@ export default function WelcomeToast({ user, onDismiss }) {
             </div>
           )}
           <span className="welcome-avatar-badge" aria-hidden="true">
-            ✓
+            <IconCheck size={11} strokeWidth={2.5} />
           </span>
         </div>
 
@@ -66,7 +67,7 @@ export default function WelcomeToast({ user, onDismiss }) {
           aria-label="Dismiss notification"
           title="Dismiss"
         >
-          ✕
+          <IconX size={14} />
         </button>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { IconCheck, IconX } from "./Icons";
 
 function ProfileModal({
   isOpen,
@@ -161,7 +162,7 @@ function ProfileModal({
             onClick={onClose}
             aria-label="Close profile modal"
           >
-            ✕
+            <IconX size={15} />
           </button>
         </div>
 
@@ -170,7 +171,8 @@ function ProfileModal({
           {error && <div className="modal-alert modal-alert-error">{error}</div>}
           {saveSuccess && (
             <div className="modal-alert modal-alert-success">
-              ✓ Profile saved successfully!
+              <IconCheck size={14} style={{ marginRight: "6px", verticalAlign: "middle" }} />
+              Profile saved successfully!
             </div>
           )}
 

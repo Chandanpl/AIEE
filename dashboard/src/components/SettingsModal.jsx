@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import ThemeToggle from "./ThemeToggle";
+import { IconX, IconLightbulb, IconFileText, IconLock, IconArrowRight } from "./Icons";
 
 function SettingsModal({
   isOpen,
@@ -57,7 +58,7 @@ function SettingsModal({
             onClick={onClose}
             aria-label="Close settings modal"
           >
-            ✕
+            <IconX size={15} />
           </button>
         </div>
 
@@ -233,7 +234,9 @@ function SettingsModal({
               </div>
 
               <div className="theme-hint-box">
-                <span className="hint-icon">💡</span>
+                <span className="hint-icon">
+                  <IconLightbulb size={16} />
+                </span>
                 <span>
                   Your theme preference is automatically persisted across page reloads in your browser.
                 </span>
@@ -369,7 +372,9 @@ function SettingsModal({
                   }}
                 >
                   <div className="legal-link-left">
-                    <div className="legal-icon">📄</div>
+                    <div className="legal-icon">
+                      <IconFileText size={18} />
+                    </div>
                     <div>
                       <h4 className="legal-link-title">Terms & Conditions</h4>
                       <p className="legal-link-desc">
@@ -377,7 +382,9 @@ function SettingsModal({
                       </p>
                     </div>
                   </div>
-                  <span className="legal-link-arrow">→</span>
+                  <span className="legal-link-arrow">
+                    <IconArrowRight size={14} />
+                  </span>
                 </div>
 
                 <div
@@ -396,7 +403,9 @@ function SettingsModal({
                   }}
                 >
                   <div className="legal-link-left">
-                    <div className="legal-icon">🔒</div>
+                    <div className="legal-icon">
+                      <IconLock size={18} />
+                    </div>
                     <div>
                       <h4 className="legal-link-title">Privacy Policy</h4>
                       <p className="legal-link-desc">
@@ -404,7 +413,9 @@ function SettingsModal({
                       </p>
                     </div>
                   </div>
-                  <span className="legal-link-arrow">→</span>
+                  <span className="legal-link-arrow">
+                    <IconArrowRight size={14} />
+                  </span>
                 </div>
               </div>
             </div>

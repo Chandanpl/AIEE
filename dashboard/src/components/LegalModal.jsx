@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { IconX } from "./Icons";
 
 function LegalModal({ isOpen, onClose, type }) {
   // Handle Escape key
@@ -45,7 +46,7 @@ function LegalModal({ isOpen, onClose, type }) {
             onClick={onClose}
             aria-label="Close legal modal"
           >
-            ✕
+            <IconX size={15} />
           </button>
         </div>
 
