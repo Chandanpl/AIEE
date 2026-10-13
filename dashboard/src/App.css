@@ -1749,6 +1749,10 @@ div[tabindex="0"]:focus-visible {
   white-space: nowrap;
   box-shadow: 0 4px 18px rgba(96, 165, 250, 0.3);
   transition: all var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  user-select: none;
 }
 
 .analyze-button:hover:not(:disabled) {

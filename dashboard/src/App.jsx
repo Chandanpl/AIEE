@@ -90,6 +90,7 @@ function App() {
 
   const [welcomeUser, setWelcomeUser] = useState(null);
   const welcomeTriggeredRef = useRef(false);
+  const isAnalyzingRef = useRef(false);
 
   // Table filtering and search with preference persistence
   const [riskFilter, setRiskFilter] = useState(() => {
@@ -473,7 +474,18 @@ function App() {
   // ANALYZE REPOSITORY
   // =========================================================
   const analyzeRepository = async (targetRepoOverride) => {
-    const targetRepo = (targetRepoOverride || repo).trim();
+    // Prevent duplicate analysis requests if an analysis is already in progress
+    if (isAnalyzingRef.current || loading) {
+      return;
+    }
+
+    // Safely extract target repo string, guarding against React Event objects from mouse clicks
+    const effectiveTarget =
+      typeof targetRepoOverride === "string" && targetRepoOverride.trim()
+        ? targetRepoOverride
+        : repo;
+    const targetRepo = (effectiveTarget || "").trim();
+
     setError("");
     setSuccessNotice("");
 
@@ -491,6 +503,7 @@ function App() {
     }
 
     // Immediately trigger full-width report mode and smooth pipeline exit
+    isAnalyzingRef.current = true;
     setAnalysisStarted(true);
     togglePipelineDrawer(false);
     setLoading(true);
@@ -526,7 +539,18 @@ function App() {
       setAnalysisStatus("error");
     } finally {
       setLoading(false);
+      isAnalyzingRef.current = false;
     }
+  };
+
+  const handleAnalysisSubmit = (e) => {
+    if (e && typeof e.preventDefault === "function") {
+      e.preventDefault();
+    }
+    if (loading || !repo.trim()) {
+      return;
+    }
+    analyzeRepository();
   };
 
   const copyToClipboard = (text) => {
@@ -921,8 +945,13 @@ function App() {
               </div>
             )}
 
-            {/* INPUT AND ACTION ROW */}
-            <div className="input-row">
+            {/* INPUT AND ACTION FORM */}
+            <form
+              className="input-row"
+              onSubmit={handleAnalysisSubmit}
+              role="search"
+              aria-label="Repository Analysis Form"
+            >
               <div className="input-wrapper">
                 <span className="input-icon" aria-hidden="true">
                   <IconGitHub size={17} />
@@ -935,12 +964,15 @@ function App() {
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !loading && authenticated) {
-                      analyzeRepository();
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAnalysisSubmit(e);
                     }
                   }}
                   disabled={loading}
                   aria-label="GitHub Repository URL"
+                  autoComplete="off"
+                  spellCheck="false"
                 />
 
                 {repo && !loading && (
@@ -957,11 +989,19 @@ function App() {
               </div>
 
               <button
-                type="button"
+                type="submit"
                 className="analyze-button"
-                onClick={analyzeRepository}
-                disabled={loading || !authenticated || !repo.trim()}
+                onClick={handleAnalysisSubmit}
+                disabled={loading || !repo.trim()}
                 id="analyze-submit-btn"
+                title={
+                  !authenticated
+                    ? "Login with GitHub required to run analysis"
+                    : !repo.trim()
+                    ? "Enter a GitHub repository URL to analyze"
+                    : "Analyze Repository"
+                }
+                aria-label="Analyze Repository"
               >
                 {loading ? (
                   <>
@@ -988,7 +1028,7 @@ function App() {
                 <IconMessageSquare size={15} />
                 <span>Feedback</span>
               </a>
-            </div>
+            </form>
 
             {/* EXAMPLE REPOSITORY GUIDANCE & SAMPLES */}
             <div className="sample-repos-section">
