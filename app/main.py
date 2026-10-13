@@ -392,7 +392,7 @@ async def analyze_repository(
         # STEP 1: Detect recent repository changes
         # ----------------------------------------------------
 
-        changes_result = detect_changes(repo)
+        changes_result = detect_changes(repo, session.access_token)
 
         if isinstance(changes_result, dict):
             changed_files = changes_result.get(
@@ -859,8 +859,7 @@ async def analyze_repository(
 # Run Application
 # ============================================================
 
-if __name__ == "__main__":
-    uvicorn.run(
+if __name__ == "__main__":    uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
         port=8000,
