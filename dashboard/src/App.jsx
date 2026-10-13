@@ -40,6 +40,7 @@ import {
   IconDatabase,
   IconSliders,
   IconRefresh,
+  IconMessageSquare,
 } from "./components/Icons";
 
 const API_BASE_URL =
@@ -60,7 +61,11 @@ const SAMPLE_REPOS = [
   "Chandanpl/AIEE",
   "pallets/flask",
   "fastapi/fastapi",
-];//font
+];
+
+const FEEDBACK_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSfJc402az371R21FgfLRn397DMXn1hbo4yKmJGrTB1ywGv2OQ/viewform?usp=publish-editor";
+
 
 function App() {
   const [repo, setRepo] = useState("");
@@ -969,6 +974,19 @@ function App() {
                   </>
                 )}
               </button>
+
+              <a
+                href={FEEDBACK_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="top-feedback-btn"
+                id="top-feedback-btn"
+                title="Share your feedback on AIEE via Google Forms"
+                aria-label="Share your feedback on AIEE (opens in new tab)"
+              >
+                <IconMessageSquare size={15} />
+                <span>Feedback</span>
+              </a>
             </div>
 
             {/* EXAMPLE REPOSITORY GUIDANCE & SAMPLES */}
