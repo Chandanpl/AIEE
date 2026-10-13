@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import "./App.css";
 import chandanPhoto from "./assets/Chandan.jpeg";
-import AIEELogo, { AIEEIcon } from "./components/AIEELogo";
+import AIEELogo from "./components/AIEELogo";
 import ProfileMenu from "./components/ProfileMenu";
 import ProfileModal from "./components/ProfileModal";
 import SettingsModal from "./components/SettingsModal";
@@ -10,6 +10,11 @@ import ThemeToggle from "./components/ThemeToggle";
 import GitHubAnalysisHero from "./components/GitHubAnalysisHero";
 import WelcomeToast from "./components/WelcomeToast";
 import CursorWaveEffect from "./components/CursorWaveEffect";
+import Tooltip from "./components/Tooltip";
+import AnalysisProgress from "./components/AnalysisProgress";
+import RecentAnalyses from "./components/RecentAnalyses";
+import FirstTimeWelcome from "./components/FirstTimeWelcome";
+import ErrorRecoveryBanner from "./components/ErrorRecoveryBanner";
 import {
   IconGitHub,
   IconSearch,
@@ -22,7 +27,6 @@ import {
   IconShield,
   IconShieldAlert,
   IconShieldCheck,
-  IconAlertTriangle,
   IconCheck,
   IconCheckCircle,
   IconX,
@@ -67,18 +71,37 @@ function App() {
   const [githubUser, setGithubUser] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Pipeline animation, state, and drawer controls
+  // Pipeline animation, state, and drawer controls with preference persistence
   const [analysisStatus, setAnalysisStatus] = useState("idle"); // "idle" | "analyzing" | "completed" | "error"
   const [analysisStarted, setAnalysisStarted] = useState(false);
-  const [pipelineDrawerOpen, setPipelineDrawerOpen] = useState(false);
+  const [pipelineDrawerOpen, setPipelineDrawerOpen] = useState(() => {
+    try {
+      return localStorage.getItem("aiee_pipeline_drawer_preference") === "true";
+    } catch {
+      return false;
+    }
+  });
 
   const [welcomeUser, setWelcomeUser] = useState(null);
   const welcomeTriggeredRef = useRef(false);
 
-  // Table filtering and search
-  const [riskFilter, setRiskFilter] = useState("ALL");
+  // Table filtering and search with preference persistence
+  const [riskFilter, setRiskFilter] = useState(() => {
+    try {
+      return localStorage.getItem("aiee_risk_filter_preference") || "ALL";
+    } catch {
+      return "ALL";
+    }
+  });
   const [tableSearch, setTableSearch] = useState("");
   const [copiedFile, setCopiedFile] = useState(null);
+  const [successNotice, setSuccessNotice] = useState("");
+
+  // User-scoped analysis history management
+  const getHistoryStorageKey = (user) =>
+    `aiee_recent_analyses_${(user || "guest").toLowerCase().trim()}`;
+
+  const [recentAnalyses, setRecentAnalyses] = useState([]);
 
   // Profile information belongs to the currently authenticated account.
   const [profile, setProfile] = useState({
@@ -105,6 +128,45 @@ function App() {
 
   const profileButtonRef = useRef(null);
 
+  // Save drawer open/close preference
+  const togglePipelineDrawer = (isOpen) => {
+    setPipelineDrawerOpen(isOpen);
+    try {
+      localStorage.setItem("aiee_pipeline_drawer_preference", String(isOpen));
+    } catch (e) {
+      console.warn("Failed to save drawer preference:", e);
+    }
+  };
+
+  // Save risk filter preference
+  const handleRiskFilterChange = (level) => {
+    setRiskFilter(level);
+    try {
+      localStorage.setItem("aiee_risk_filter_preference", level);
+    } catch (e) {
+      console.warn("Failed to save risk filter preference:", e);
+    }
+  };
+
+  // Load user's recent analyses when authenticated user changes
+  useEffect(() => {
+    try {
+      const key = getHistoryStorageKey(githubUser);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setRecentAnalyses(parsed);
+        }
+      } else {
+        setRecentAnalyses([]);
+      }
+    } catch (e) {
+      console.warn("Failed to load history from localStorage:", e);
+      setRecentAnalyses([]);
+    }
+  }, [githubUser]);
+
   // Apply theme to document
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -116,7 +178,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && pipelineDrawerOpen) {
-        setPipelineDrawerOpen(false);
+        togglePipelineDrawer(false);
       }
     };
     if (pipelineDrawerOpen) {
@@ -124,6 +186,7 @@ function App() {
     }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [pipelineDrawerOpen]);
+
 
   const handleSaveProfile = (newProfile) => {
     const updatedProfile = {
@@ -280,10 +343,133 @@ function App() {
   };
 
   // =========================================================
+  // REPOSITORY VALIDATION & HISTORY HELPERS
+  // =========================================================
+  const validateRepoInput = (input) => {
+    const trimmed = (input || "").trim();
+    if (!trimmed) {
+      return "Please enter a GitHub repository URL or slug (e.g. owner/repo).";
+    }
+    const isSlug = /^[\w.-]+\/[\w.-]+$/.test(trimmed);
+    const isUrl =
+      /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i.test(
+        trimmed
+      );
+
+    if (!isSlug && !isUrl) {
+      return "Invalid repository format. Please provide a valid GitHub repository URL (e.g., https://github.com/pallets/flask) or slug (e.g., pallets/flask).";
+    }
+    return null;
+  };
+
+  const saveToRecentAnalyses = (analysisResult, targetRepo) => {
+    try {
+      const key = getHistoryStorageKey(githubUser);
+      const raw = localStorage.getItem(key);
+      let existing = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(existing)) existing = [];
+
+      const recs = analysisResult?.recommendations || [];
+      const highRisks = recs.filter((r) => r.risk_level === "HIGH").length;
+      const medRisks = recs.filter((r) => r.risk_level === "MEDIUM").length;
+      const calculatedRisk =
+        highRisks > 0 ? "HIGH" : medRisks > 0 ? "MEDIUM" : "LOW";
+
+      const newItem = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        repo: targetRepo || analysisResult?.repository || "Repository",
+        timestamp: Date.now(),
+        formattedDate: new Date().toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        commitSha:
+          analysisResult?.commit?.sha ||
+          analysisResult?.commit?.id ||
+          analysisResult?.commit_sha ||
+          (analysisResult?.latest_commit
+            ? String(analysisResult.latest_commit).substring(0, 7)
+            : ""),
+        commitMessage:
+          analysisResult?.commit?.message ||
+          analysisResult?.commit_message ||
+          "Latest repository change detection",
+        riskLevel: calculatedRisk,
+        affectedCount: analysisResult?.total_recommendations || recs.length,
+        highRiskCount: highRisks,
+        result: analysisResult,
+      };
+
+      const filtered = [
+        newItem,
+        ...existing.filter((item) => item.repo !== newItem.repo),
+      ].slice(0, 15);
+
+      localStorage.setItem(key, JSON.stringify(filtered));
+      setRecentAnalyses(filtered);
+    } catch (e) {
+      console.warn("Failed to save recent analysis:", e);
+    }
+  };
+
+  const deleteHistoryItem = (id) => {
+    try {
+      const key = getHistoryStorageKey(githubUser);
+      const updated = recentAnalyses.filter((item) => item.id !== id);
+      localStorage.setItem(key, JSON.stringify(updated));
+      setRecentAnalyses(updated);
+    } catch (e) {
+      console.warn("Failed to delete history item:", e);
+    }
+  };
+
+  const clearAllHistory = () => {
+    try {
+      const key = getHistoryStorageKey(githubUser);
+      localStorage.removeItem(key);
+      setRecentAnalyses([]);
+    } catch (e) {
+      console.warn("Failed to clear history:", e);
+    }
+  };
+
+  const handleReopenHistory = (item) => {
+    if (item?.result) {
+      setRepo(item.repo);
+      setResult(item.result);
+      setAnalysisStarted(true);
+      setAnalysisStatus("completed");
+      setError("");
+      setSuccessNotice(
+        `Reopened saved report for ${item.repo} (${item.formattedDate}).`
+      );
+      setTimeout(() => {
+        document.getElementById("analysis-results")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 50);
+    }
+  };
+
+  const handleRerunHistory = (repoName) => {
+    const target = repoName.startsWith("http")
+      ? repoName
+      : `https://github.com/${repoName}`;
+    setRepo(target);
+    setError("");
+    analyzeRepository(target);
+  };
+
+  // =========================================================
   // ANALYZE REPOSITORY
   // =========================================================
-  const analyzeRepository = async () => {
+  const analyzeRepository = async (targetRepoOverride) => {
+    const targetRepo = (targetRepoOverride || repo).trim();
     setError("");
+    setSuccessNotice("");
 
     if (!authenticated) {
       setError("Please login with GitHub before analyzing a repository.");
@@ -291,26 +477,24 @@ function App() {
       return;
     }
 
-    if (!repo.trim()) {
-      setError(
-        "Please enter a GitHub repository URL or slug (e.g. owner/repo)."
-      );
+    const validationMsg = validateRepoInput(targetRepo);
+    if (validationMsg) {
+      setError(validationMsg);
       setAnalysisStatus("error");
       return;
     }
 
     // Immediately trigger full-width report mode and smooth pipeline exit
     setAnalysisStarted(true);
-    setPipelineDrawerOpen(false);
+    togglePipelineDrawer(false);
     setLoading(true);
     setAnalysisStatus("analyzing");
     setResult(null);
-    setRiskFilter("ALL");
     setTableSearch("");
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/analyze?repo=${encodeURIComponent(repo.trim())}`,
+        `${API_BASE_URL}/analyze?repo=${encodeURIComponent(targetRepo)}`,
         {
           method: "POST",
           credentials: "include",
@@ -326,6 +510,10 @@ function App() {
 
       setResult(data);
       setAnalysisStatus("completed");
+      saveToRecentAnalyses(data, targetRepo);
+      setSuccessNotice(
+        `Analysis completed successfully for ${targetRepo}. Review your change-impact report below.`
+      );
     } catch (err) {
       console.error("AIEE analysis error:", err);
       setError(err.message || "Unable to connect to the AIEE backend.");
@@ -346,9 +534,10 @@ function App() {
   // Return to the initial standby overview layout
   const resetToStandbyOverview = () => {
     setAnalysisStarted(false);
-    setPipelineDrawerOpen(false);
+    togglePipelineDrawer(false);
     setResult(null);
     setError("");
+    setSuccessNotice("");
     setAnalysisStatus("idle");
   };
 
@@ -567,7 +756,7 @@ function App() {
           className={`floating-pipeline-btn ${
             pipelineDrawerOpen ? "is-active" : ""
           }`}
-          onClick={() => setPipelineDrawerOpen((prev) => !prev)}
+          onClick={() => togglePipelineDrawer(!pipelineDrawerOpen)}
           title={
             pipelineDrawerOpen
               ? "Hide GitHub analysis pipeline"
@@ -598,7 +787,7 @@ function App() {
       {pipelineDrawerOpen && (
         <div
           className="pipeline-drawer-overlay"
-          onClick={() => setPipelineDrawerOpen(false)}
+          onClick={() => togglePipelineDrawer(false)}
           role="dialog"
           aria-modal="true"
           aria-labelledby="pipeline-drawer-title"
@@ -624,7 +813,7 @@ function App() {
                 <button
                   type="button"
                   className="drawer-close-btn"
-                  onClick={() => setPipelineDrawerOpen(false)}
+                  onClick={() => togglePipelineDrawer(false)}
                   aria-label="Hide pipeline drawer"
                 >
                   <IconX size={15} />
@@ -785,22 +974,43 @@ function App() {
               </button>
             </div>
 
-            {/* QUICK SAMPLE REPOSITORIES */}
-            <div className="sample-repos-row">
-              <span className="sample-repos-label">Quick samples:</span>
-              <div className="sample-repos-chips">
+            {/* EXAMPLE REPOSITORY GUIDANCE & SAMPLES */}
+            <div className="sample-repos-section">
+              <div className="sample-repos-header">
+                <span className="sample-repos-label">Try an example repository:</span>
+                <span className="sample-repos-guidance">
+                  Clicking a sample automatically fills the repository URL input for you to review before analyzing.
+                </span>
+              </div>
+
+              <div
+                className="sample-repos-chips"
+                role="group"
+                aria-label="Example repositories"
+              >
                 {SAMPLE_REPOS.map((sample) => (
                   <button
                     key={sample}
                     type="button"
-                    className="sample-repo-pill"
-                    onClick={() => setRepo(`https://github.com/${sample}`)}
+                    className={`sample-repo-pill ${
+                      repo.includes(sample) ? "is-selected" : ""
+                    }`}
+                    onClick={() => {
+                      setRepo(`https://github.com/${sample}`);
+                      setError("");
+                    }}
                     disabled={loading}
+                    aria-label={`Use example repository ${sample}`}
                   >
-                    {sample}
+                    <IconGitHub size={13} aria-hidden="true" />
+                    <span>{sample}</span>
                   </button>
                 ))}
               </div>
+
+              <span className="sample-repos-perm-note">
+                Note: Repositories must be public or accessible under your authorized GitHub permissions.
+              </span>
             </div>
 
             {/* LOGIN REQUIRED BANNER */}
@@ -832,77 +1042,94 @@ function App() {
             )}
           </section>
 
-          {/* ERROR ALERT BANNER */}
+          {/* CLEAR ERROR RECOVERY BANNER */}
           {error && (
-            <div className="error-message-banner" role="alert">
-              <span className="error-icon-wrap" aria-hidden="true">
-                <IconAlertTriangle size={18} />
-              </span>
-              <div className="error-content">
-                <strong>Analysis Paused:</strong>
-                <span>{error}</span>
+            <ErrorRecoveryBanner
+              error={error}
+              authenticated={authenticated}
+              onDismiss={() => {
+                setError("");
+                setAnalysisStatus("idle");
+              }}
+              onLogin={loginWithGitHub}
+              onEditUrl={() => {
+                setError("");
+                const input = document.getElementById("repository-url-input");
+                if (input) {
+                  input.focus();
+                  input.select();
+                }
+              }}
+              onRetry={() => {
+                analyzeRepository();
+              }}
+              onTryExample={() => {
+                setError("");
+                setRepo("https://github.com/Chandanpl/AIEE");
+                const input = document.getElementById("repository-url-input");
+                if (input) input.focus();
+              }}
+            />
+          )}
+
+          {/* FRIENDLY ANALYSIS PROGRESS PANEL */}
+          {loading && (
+            <AnalysisProgress
+              repo={repo}
+              onCancel={() => {
+                setLoading(false);
+                setAnalysisStatus("idle");
+              }}
+            />
+          )}
+
+          {/* SUCCESS COMPLETION NOTICE */}
+          {successNotice && !loading && (
+            <div className="analysis-success-banner" role="status" aria-live="polite">
+              <div className="success-banner-content">
+                <IconCheckCircle size={16} className="success-banner-icon" />
+                <span>{successNotice}</span>
               </div>
               <button
                 type="button"
-                className="error-dismiss-btn"
-                onClick={() => setError("")}
-                aria-label="Dismiss error"
+                className="btn-dismiss-banner"
+                onClick={() => setSuccessNotice("")}
+                aria-label="Dismiss completion message"
               >
-                <IconX size={14} />
+                <IconX size={13} />
               </button>
             </div>
           )}
 
-          {/* WHILE ANALYSIS IS RUNNING: DISPLAY STATUS AT TOP OF REPORT AREA */}
-          {loading && (
-            <section
-              className="loading-card main-area-loading"
-              aria-live="polite"
-            >
-              <div className="loading-top-indicator">
-                <div className="loading-circuit-wrap">
-                  <AIEEIcon size={46} className="pulsing-circuit-logo" />
-                </div>
-                <div>
-                  <h3 className="loading-title">
-                    Analyzing Repository Architecture...
-                  </h3>
-                  <p className="loading-subtitle">
-                    Mining repository commit history, building file dependency
-                    matrices, and executing KMeans &amp; DBSCAN machine-learning
-                    clustering on <code>{repo}</code>.
-                  </p>
-                </div>
-              </div>
+          {/* FIRST-TIME WELCOME EXPERIENCE (shown before user has completed analyses) */}
+          {!result && !loading && recentAnalyses.length === 0 && (
+            <FirstTimeWelcome
+              authenticated={authenticated}
+              displayName={profile?.displayName}
+              onSelectSample={(sample) => {
+                setRepo(`https://github.com/${sample}`);
+                setError("");
+                document.getElementById("repository-url-input")?.focus();
+              }}
+              onFocusInput={() => {
+                document.getElementById("repository-url-input")?.focus();
+              }}
+              onLogin={loginWithGitHub}
+              sampleRepos={SAMPLE_REPOS}
+            />
+          )}
 
-              <div className="loading-pulse-progress-bar" aria-hidden="true">
-                <div className="loading-pulse-fill"></div>
-              </div>
-
-              <div className="loading-steps-list">
-                <div className="loading-step active">
-                  <span className="step-dot pulse"></span>
-                  <span>Inspecting recent commits and file change diffs</span>
-                </div>
-                <div className="loading-step active">
-                  <span className="step-dot pulse"></span>
-                  <span>Calculating dependency graph and co-change frequency</span>
-                </div>
-                <div className="loading-step active">
-                  <span className="step-dot pulse"></span>
-                  <span>Executing KMeans &amp; DBSCAN clustering models</span>
-                </div>
-                <div className="loading-step active">
-                  <span className="step-dot pulse"></span>
-                  <span>Ranking potentially affected files by hybrid risk score</span>
-                </div>
-              </div>
-
-              <span className="loading-hint">
-                Analysis typically takes 10–25 seconds for repositories with
-                extensive commit history.
-              </span>
-            </section>
+          {/* RECENT ANALYSES SECTION (IN STANDBY MODE) */}
+          {!result && !loading && (
+            <RecentAnalyses
+              history={recentAnalyses}
+              onReopen={handleReopenHistory}
+              onRerun={handleRerunHistory}
+              onDelete={deleteHistoryItem}
+              onClearAll={clearAllHistory}
+              currentUser={githubUser || profile?.displayName}
+              disabled={loading}
+            />
           )}
 
           {/* AFTER ANALYSIS FINISHES: COMPACT REPORT & ACCORDION DROPDOWNS */}
@@ -958,7 +1185,9 @@ function App() {
                   <div className="summary-header-actions">
                     {/* Overall Risk Level Badge (calculated from actual backend data) */}
                     <div className="summary-risk-badge-wrap">
-                      <span className="summary-risk-label">Overall Risk:</span>
+                      <Tooltip text="A score calculated by AIEE to help prioritize files for review. A higher score indicates higher relative priority within this analysis.">
+                        <span className="summary-risk-label">Overall Risk:</span>
+                      </Tooltip>
                       <span
                         className={`overall-risk-badge ${getRiskClass(
                           overallRiskLevel
@@ -1028,9 +1257,11 @@ function App() {
 
                   <div className="summary-card">
                     <div className="summary-card-header">
-                      <span className="summary-label">
-                        Potentially Affected
-                      </span>
+                      <Tooltip text="Files that may need review because of their relationship to the detected changes.">
+                        <span className="summary-label">
+                          Potentially Affected
+                        </span>
+                      </Tooltip>
                       <span className="summary-icon-chip">
                         <IconTarget size={16} />
                       </span>
@@ -1070,7 +1301,9 @@ function App() {
 
                   <div className="summary-card">
                     <div className="summary-card-header">
-                      <span className="summary-label">Risk Breakdown</span>
+                      <Tooltip text="A score calculated by AIEE to help prioritize files for review. A higher score indicates higher relative priority within this analysis.">
+                        <span className="summary-label">Risk Breakdown</span>
+                      </Tooltip>
                       <span className="summary-icon-chip">
                         <IconSliders size={16} />
                       </span>
@@ -1289,7 +1522,7 @@ function App() {
                               className={`filter-btn ${
                                 riskFilter === level ? "active" : ""
                               }`}
-                              onClick={() => setRiskFilter(level)}
+                              onClick={() => handleRiskFilterChange(level)}
                             >
                               {level}
                             </button>
@@ -1313,10 +1546,24 @@ function App() {
                         <table>
                           <thead>
                             <tr>
-                              <th scope="col">Affected File</th>
-                              <th scope="col">Risk Level</th>
-                              <th scope="col">Risk Score</th>
-                              <th scope="col">Dependencies</th>
+                              <th scope="col">
+                                <Tooltip text="Files that may need review because of their relationship to the detected changes.">
+                                  <span>Affected File</span>
+                                </Tooltip>
+                              </th>
+                              <th scope="col">
+                                <span>Risk Level</span>
+                              </th>
+                              <th scope="col">
+                                <Tooltip text="A score calculated by AIEE to help prioritize files for review. A higher score indicates higher relative priority within this analysis.">
+                                  <span>Risk Score</span>
+                                </Tooltip>
+                              </th>
+                              <th scope="col">
+                                <Tooltip text="Other files or components that may be related to this file.">
+                                  <span>Dependencies</span>
+                                </Tooltip>
+                              </th>
                             </tr>
                           </thead>
 
@@ -1477,9 +1724,11 @@ function App() {
                           {item.changed_files &&
                             item.changed_files.length > 0 && (
                               <div className="affected-by">
-                                <span className="affected-by-label">
-                                  Triggered by changes in:
-                                </span>
+                                <Tooltip text="Files that have frequently changed together in previous commits.">
+                                  <span className="affected-by-label">
+                                    Triggered by changes in:
+                                  </span>
+                                </Tooltip>
                                 <div className="affected-by-chips">
                                   {item.changed_files.map(
                                     (file, fileIndex) => (
@@ -1540,7 +1789,11 @@ function App() {
                             {result.ml_pipeline?.kmeans || "Generated"}
                           </span>
                         </div>
-                        <h4>KMeans Clustering</h4>
+                        <h4>
+                          <Tooltip text="A method that groups files with similar characteristics.">
+                            <span>KMeans Clustering</span>
+                          </Tooltip>
+                        </h4>
                         <p>
                           Partitions files into behavioral clusters based
                           on commit frequencies and dependency graph
@@ -1557,7 +1810,11 @@ function App() {
                             {result.ml_pipeline?.dbscan || "Generated"}
                           </span>
                         </div>
-                        <h4>DBSCAN Clustering</h4>
+                        <h4>
+                          <Tooltip text="A method that groups closely related data points and identifies outliers.">
+                            <span>DBSCAN Clustering</span>
+                          </Tooltip>
+                        </h4>
                         <p>
                           Density-based spatial clustering that uncovers
                           dense co-change groups and isolates outlier
@@ -1572,7 +1829,11 @@ function App() {
                           </div>
                           <span className="ml-status">Processed</span>
                         </div>
-                        <h4>Repository History Mining</h4>
+                        <h4>
+                          <Tooltip text="Files that have frequently changed together in previous commits.">
+                            <span>Repository History Mining</span>
+                          </Tooltip>
+                        </h4>
                         <p>
                           Analyzed{" "}
                           {result.historical_analysis?.commits_processed || 0}{" "}
@@ -1605,6 +1866,19 @@ function App() {
                     </div>
                   </div>
                 </details>
+              </div>
+
+              {/* RECENT ANALYSES HISTORY IN REPORT VIEW */}
+              <div className="report-history-footer-wrap">
+                <RecentAnalyses
+                  history={recentAnalyses}
+                  onReopen={handleReopenHistory}
+                  onRerun={handleRerunHistory}
+                  onDelete={deleteHistoryItem}
+                  onClearAll={clearAllHistory}
+                  currentUser={githubUser || profile?.displayName}
+                  disabled={loading}
+                />
               </div>
             </section>
           )}
