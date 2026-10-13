@@ -7,6 +7,8 @@ import ProfileModal from "./components/ProfileModal";
 import SettingsModal from "./components/SettingsModal";
 import LegalModal from "./components/LegalModal";
 import ThemeToggle from "./components/ThemeToggle";
+import GitHubAnalysisHero from "./components/GitHubAnalysisHero";
+import WelcomeToast from "./components/WelcomeToast";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
@@ -37,6 +39,11 @@ function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [githubUser, setGithubUser] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Pipeline animation and welcome notification state
+  const [analysisStatus, setAnalysisStatus] = useState("idle"); // "idle" | "analyzing" | "completed" | "error"
+  const [welcomeUser, setWelcomeUser] = useState(null);
+  const welcomeTriggeredRef = useRef(false);
 
   // Table filtering and search
   const [riskFilter, setRiskFilter] = useState("ALL");
@@ -177,11 +184,24 @@ function App() {
             );
           }
 
+          const finalDisplayName = savedProfile?.displayName || githubName;
+          const finalAvatar = githubAvatar || savedProfile?.photoUrl || "";
+
           setProfile({
-            displayName: savedProfile?.displayName || githubName,
+            displayName: finalDisplayName,
             // Prefer the avatar returned for the current GitHub account.
-            photoUrl: githubAvatar || savedProfile?.photoUrl || "",
+            photoUrl: finalAvatar,
           });
+
+          // Trigger welcome notification only once upon authenticated transition
+          if (!welcomeTriggeredRef.current && (username || githubName)) {
+            welcomeTriggeredRef.current = true;
+            setWelcomeUser({
+              name: finalDisplayName,
+              username: username,
+              avatar: finalAvatar,
+            });
+          }
         } else {
           setAuthenticated(false);
           setGithubUser("");
@@ -226,6 +246,9 @@ function App() {
       setGithubUser("");
       setProfile({ displayName: "", photoUrl: "" });
       setResult(null);
+      welcomeTriggeredRef.current = false;
+      setWelcomeUser(null);
+      setAnalysisStatus("idle");
     }
   };
 
@@ -237,6 +260,7 @@ function App() {
 
     if (!authenticated) {
       setError("Please login with GitHub before analyzing a repository.");
+      setAnalysisStatus("error");
       return;
     }
 
@@ -244,10 +268,12 @@ function App() {
       setError(
         "Please enter a GitHub repository URL or repository slug (e.g. owner/repo)."
       );
+      setAnalysisStatus("error");
       return;
     }
 
     setLoading(true);
+    setAnalysisStatus("analyzing");
     setResult(null);
     setRiskFilter("ALL");
     setTableSearch("");
@@ -269,9 +295,14 @@ function App() {
       }
 
       setResult(data);
+      setAnalysisStatus("completed");
+      setTimeout(() => {
+        setAnalysisStatus("idle");
+      }, 3500);
     } catch (err) {
       console.error("AIEE analysis error:", err);
       setError(err.message || "Unable to connect to the AIEE backend.");
+      setAnalysisStatus("error");
     } finally {
       setLoading(false);
     }
@@ -470,53 +501,21 @@ function App() {
       </header>
 	      {/* MAIN CONTENT */}
       <main className="container" id="main-content">
-        {/* HERO SECTION */}
-        <section className="hero" aria-labelledby="hero-heading">
-          <div className="hero-content">
-            <div className="eyebrow-pill">
-              <span className="eyebrow-circuit-node"></span>
-              <span className="eyebrow">
-                AI-POWERED REPOSITORY INTELLIGENCE
-              </span>
-            </div>
+        {/* WELCOME TOAST NOTIFICATION */}
+        <WelcomeToast
+          user={welcomeUser}
+          onDismiss={() => setWelcomeUser(null)}
+        />
 
-            <h1 id="hero-heading" className="hero-title">
-              Understand the impact of{" "}
-              <span className="hero-gradient-text">
-                every code change.
-              </span>
-            </h1>
-
-            <p className="hero-description">
-              AIEE analyzes repository history, file dependencies,
-              change frequency, and machine-learning clusters to
-              identify potentially affected files before bugs reach
-              production.
-            </p>
-
-            <div
-              className="feature-pills-row"
-              aria-label="Engine Capabilities"
-            >
-              <div className="feature-pill">
-                <span className="feature-pill-icon">⚡</span>
-                <span>Git History Mining</span>
-              </div>
-              <div className="feature-pill">
-                <span className="feature-pill-icon">🕸️</span>
-                <span>Dependency Graphs</span>
-              </div>
-              <div className="feature-pill">
-                <span className="feature-pill-icon">🧬</span>
-                <span>KMeans &amp; DBSCAN ML</span>
-              </div>
-              <div className="feature-pill">
-                <span className="feature-pill-icon">🎯</span>
-                <span>Hybrid Risk Scoring</span>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* ANIMATED GITHUB ANALYSIS HERO */}
+        <GitHubAnalysisHero
+          authenticated={authenticated}
+          githubUser={githubUser}
+          profile={profile}
+          analysisStatus={analysisStatus}
+          loading={loading}
+          onLogin={loginWithGitHub}
+        />
 
         {/* REPOSITORY ANALYSIS CARD */}
         <section
@@ -1160,11 +1159,8 @@ function App() {
                     <tr>
                       <th scope="col">Affected File</th>
                       <th scope="col">Risk Level</th>
-                      <th scope="col">Score</th>
-                      <th scope="col">Dependency</th>
-                      <th scope="col">Frequency</th>
-                      <th scope="col">KMeans</th>
-                      <th scope="col">DBSCAN</th>
+                      <th scope="col">Risk Score</th>
+                      <th scope="col">Dependencies</th>
                     </tr>
                   </thead>
 
@@ -1219,35 +1215,11 @@ function App() {
                               {item.dependency_count ?? 0}
                             </span>
                           </td>
-
-                          <td>
-                            <span className="metric-cell-value">
-                              {item.file_frequency ?? 0}
-                            </span>
-                          </td>
-
-                          <td>
-                            <span className="cluster-tag">
-                              {item.kmeans_cluster !== undefined &&
-                              item.kmeans_cluster !== null
-                                ? `C${item.kmeans_cluster}`
-                                : "—"}
-                            </span>
-                          </td>
-
-                          <td>
-                            <span className="cluster-tag">
-                              {item.dbscan_cluster !== undefined &&
-                              item.dbscan_cluster !== null
-                                ? `G${item.dbscan_cluster}`
-                                : "—"}
-                            </span>
-                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="table-empty-row">
+                        <td colSpan={4} className="table-empty-row">
                           No affected files matching current filter
                           criteria.
                         </td>
