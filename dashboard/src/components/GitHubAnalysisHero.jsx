@@ -305,7 +305,7 @@ export default function GitHubAnalysisHero({
         <div className="hero-eyebrow-wrap">
           <span className="hero-circuit-dot" aria-hidden="true"></span>
           <span className="hero-eyebrow-text">
-            {compact ? "9-STAGE ORBITAL PIPELINE" : "AIEE ARCHITECTURE · 9-STAGE REPOSITORY INTELLIGENCE"}
+            {compact ? "9-Stage Orbital Pipeline" : "AIEE Architecture · 9-Stage Repository Intelligence"}
           </span>
         </div>
 
