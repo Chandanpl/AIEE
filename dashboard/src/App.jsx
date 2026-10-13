@@ -60,7 +60,7 @@ const SAMPLE_REPOS = [
   "Chandanpl/AIEE",
   "pallets/flask",
   "fastapi/fastapi",
-];
+];//font
 
 function App() {
   const [repo, setRepo] = useState("");
@@ -569,12 +569,12 @@ function App() {
     highRiskCount > 0
       ? "HIGH"
       : mediumRiskCount > 0
-      ? "MEDIUM"
-      : lowRiskCount > 0
-      ? "LOW"
-      : recommendations.length > 0
-      ? "LOW"
-      : "LOW";
+        ? "MEDIUM"
+        : lowRiskCount > 0
+          ? "LOW"
+          : recommendations.length > 0
+            ? "LOW"
+            : "LOW";
 
   // Commit information safely extracted from backend payload if available
   const commitIdentifier =
@@ -704,9 +704,8 @@ function App() {
 
                 <IconChevronDown
                   size={14}
-                  className={`profile-trigger-arrow ${
-                    profileMenuOpen ? "open" : ""
-                  }`}
+                  className={`profile-trigger-arrow ${profileMenuOpen ? "open" : ""
+                    }`}
                 />
               </button>
 
@@ -753,9 +752,8 @@ function App() {
       {isFullWidthReportMode && (
         <button
           type="button"
-          className={`floating-pipeline-btn ${
-            pipelineDrawerOpen ? "is-active" : ""
-          }`}
+          className={`floating-pipeline-btn ${pipelineDrawerOpen ? "is-active" : ""
+            }`}
           onClick={() => togglePipelineDrawer(!pipelineDrawerOpen)}
           title={
             pipelineDrawerOpen
@@ -870,9 +868,8 @@ function App() {
         >
           {/* REPOSITORY INPUT BAR (FULL STANDBY CARD OR STREAMLINED TOP BAR) */}
           <section
-            className={`analysis-card ${
-              isFullWidthReportMode ? "analysis-card-compact-bar" : ""
-            }`}
+            className={`analysis-card ${isFullWidthReportMode ? "analysis-card-compact-bar" : ""
+              }`}
             aria-labelledby="analysis-heading"
           >
             {!isFullWidthReportMode && (
@@ -992,9 +989,8 @@ function App() {
                   <button
                     key={sample}
                     type="button"
-                    className={`sample-repo-pill ${
-                      repo.includes(sample) ? "is-selected" : ""
-                    }`}
+                    className={`sample-repo-pill ${repo.includes(sample) ? "is-selected" : ""
+                      }`}
                     onClick={() => {
                       setRepo(`https://github.com/${sample}`);
                       setError("");
@@ -1275,9 +1271,8 @@ function App() {
                   </div>
 
                   <div
-                    className={`summary-card ${
-                      highRiskCount > 0 ? "highlight-risk" : ""
-                    }`}
+                    className={`summary-card ${highRiskCount > 0 ? "highlight-risk" : ""
+                      }`}
                   >
                     <div className="summary-card-header">
                       <span className="summary-label">High Risk Files</span>
@@ -1286,9 +1281,8 @@ function App() {
                       </span>
                     </div>
                     <strong
-                      className={`summary-value ${
-                        highRiskCount > 0 ? "high-number" : ""
-                      }`}
+                      className={`summary-value ${highRiskCount > 0 ? "high-number" : ""
+                        }`}
                     >
                       {highRiskCount}
                     </strong>
@@ -1408,7 +1402,7 @@ function App() {
 
                       <div className="file-list">
                         {result.changed_files &&
-                        result.changed_files.length > 0 ? (
+                          result.changed_files.length > 0 ? (
                           result.changed_files.map((file, index) => (
                             <div
                               className="file-item"
@@ -1482,7 +1476,7 @@ function App() {
                     </div>
                   </summary>
 
-                    <div className="accordion-content">
+                  <div className="accordion-content">
                     <div className="table-card-inner">
                       <div className="table-controls">
                         <div className="table-search-wrap">
@@ -1519,9 +1513,8 @@ function App() {
                             <button
                               key={level}
                               type="button"
-                              className={`filter-btn ${
-                                riskFilter === level ? "active" : ""
-                              }`}
+                              className={`filter-btn ${riskFilter === level ? "active" : ""
+                                }`}
                               onClick={() => handleRiskFilterChange(level)}
                             >
                               {level}
