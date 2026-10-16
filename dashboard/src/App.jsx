@@ -690,9 +690,11 @@ function App() {
               onClick={loginWithGitHub}
               id="github-login-btn"
               aria-label="Login with GitHub"
+              title="Login with GitHub"
             >
               <IconGitHub size={16} />
-              <span>Login with GitHub</span>
+              <span className="github-login-btn-text-full">Login with GitHub</span>
+              <span className="github-login-btn-text-compact">Login</span>
             </button>
           )}
 

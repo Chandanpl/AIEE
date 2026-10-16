@@ -163,7 +163,12 @@ export default function AIEELogo({
             <span className="aiee-brand-title">AI-Evolution-Engine</span>
             <span className="aiee-brand-pill">AIEE</span>
           </div>
-          {subtitle && <p className="aiee-brand-subtitle">{subtitle}</p>}
+          {subtitle && (
+            <p className="aiee-brand-subtitle">
+              <span className="subtitle-full">{subtitle}</span>
+              <span className="subtitle-compact">Impact Analysis</span>
+            </p>
+          )}
         </div>
       )}
     </div>
