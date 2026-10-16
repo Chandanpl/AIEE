@@ -3,11 +3,7 @@ import React from "react";
 /**
  * AIEELogo - Enterprise AI Circuit Logo for AI-Evolution-Engine
  *
- * Features:
- * - Crisp SVG geometry with circuit paths, connected nodes, and central AI neural core.
- * - Electric-blue (#60A5FA) to Cyan (#22D3EE) gradients on dark navy rounded-square backdrop.
- * - Scalable to any dimensions (sm, md, lg, or custom size).
- * - Optional brand name and subtitle.
+ * Updated with the refined Graphite, Deep Charcoal, and Muted Teal palette (#45B8A0).
  */
 export function AIEEIcon({ size = 40, className = "" }) {
   return (
@@ -22,23 +18,23 @@ export function AIEEIcon({ size = 40, className = "" }) {
       role="img"
     >
       <defs>
-        {/* Circuit stroke gradient */}
+        {/* Circuit stroke gradient — Muted Teal */}
         <linearGradient id="aieeCircuitGrad" x1="4" y1="4" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#60A5FA" />
-          <stop offset="100%" stopColor="#22D3EE" />
+          <stop offset="0%" stopColor="#45B8A0" />
+          <stop offset="100%" stopColor="#319782" />
         </linearGradient>
 
-        {/* Backdrop gradient */}
+        {/* Backdrop gradient — Deep Charcoal to Graphite */}
         <linearGradient id="aieeBgGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#0F2137" />
-          <stop offset="100%" stopColor="#081423" />
+          <stop offset="0%" stopColor="#293139" />
+          <stop offset="100%" stopColor="#171B1F" />
         </linearGradient>
 
-        {/* Border gradient */}
+        {/* Metallic Border gradient */}
         <linearGradient id="aieeBorderGrad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.8" />
-          <stop offset="50%" stopColor="#22D3EE" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.7" />
+          <stop offset="0%" stopColor="#45B8A0" stopOpacity="0.7" />
+          <stop offset="50%" stopColor="#3A444D" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#293139" stopOpacity="0.8" />
         </linearGradient>
 
         {/* Neural core glow filter */}
@@ -48,7 +44,7 @@ export function AIEEIcon({ size = 40, className = "" }) {
         </filter>
       </defs>
 
-      {/* Rounded-square backdrop */}
+      {/* Rounded-square backdrop with dimensional metallic edge */}
       <rect
         x="1.5"
         y="1.5"
@@ -109,27 +105,27 @@ export function AIEEIcon({ size = 40, className = "" }) {
       />
 
       {/* Circuit terminal nodes (dots) */}
-      <circle cx="7" cy="14" r="2" fill="#22D3EE" />
-      <circle cx="9" cy="33" r="2" fill="#60A5FA" />
-      <circle cx="35" cy="11" r="2" fill="#22D3EE" />
-      <circle cx="37" cy="30" r="2" fill="#60A5FA" />
-      <circle cx="22" cy="7" r="1.5" fill="#22D3EE" />
-      <circle cx="22" cy="37" r="1.5" fill="#60A5FA" />
+      <circle cx="7" cy="14" r="2" fill="#45B8A0" />
+      <circle cx="9" cy="33" r="2" fill="#A9B2BB" />
+      <circle cx="35" cy="11" r="2" fill="#45B8A0" />
+      <circle cx="37" cy="30" r="2" fill="#A9B2BB" />
+      <circle cx="22" cy="7" r="1.5" fill="#45B8A0" />
+      <circle cx="22" cy="37" r="1.5" fill="#A9B2BB" />
 
       {/* Central AI Hexagonal Neural Core */}
       <polygon
         points="22,12 30,16.8 30,27.2 22,32 14,27.2 14,16.8"
-        fill="#0B1A2C"
+        fill="#171B1F"
         stroke="url(#aieeCircuitGrad)"
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
 
       {/* Internal neural matrix paths */}
-      <line x1="22" y1="12" x2="22" y2="22" stroke="#60A5FA" strokeWidth="1" strokeOpacity="0.7" />
-      <line x1="14" y1="22" x2="30" y2="22" stroke="#22D3EE" strokeWidth="1" strokeOpacity="0.7" />
-      <line x1="14" y1="16.8" x2="22" y2="22" stroke="#60A5FA" strokeWidth="0.8" strokeOpacity="0.5" />
-      <line x1="30" y1="27.2" x2="22" y2="22" stroke="#22D3EE" strokeWidth="0.8" strokeOpacity="0.5" />
+      <line x1="22" y1="12" x2="22" y2="22" stroke="#45B8A0" strokeWidth="1" strokeOpacity="0.7" />
+      <line x1="14" y1="22" x2="30" y2="22" stroke="#45B8A0" strokeWidth="1" strokeOpacity="0.7" />
+      <line x1="14" y1="16.8" x2="22" y2="22" stroke="#3A444D" strokeWidth="0.8" strokeOpacity="0.8" />
+      <line x1="30" y1="27.2" x2="22" y2="22" stroke="#3A444D" strokeWidth="0.8" strokeOpacity="0.8" />
 
       {/* Core AI Nucleus */}
       <circle
@@ -139,15 +135,15 @@ export function AIEEIcon({ size = 40, className = "" }) {
         fill="url(#aieeCircuitGrad)"
         filter="url(#aieeCoreGlow)"
       />
-      <circle cx="22" cy="22" r="1.5" fill="#FFFFFF" />
+      <circle cx="22" cy="22" r="1.5" fill="#F2F4F5" />
 
       {/* Outer corner micro-nodes */}
-      <circle cx="22" cy="12" r="1.2" fill="#22D3EE" />
-      <circle cx="30" cy="16.8" r="1.2" fill="#60A5FA" />
-      <circle cx="30" cy="27.2" r="1.2" fill="#22D3EE" />
-      <circle cx="22" cy="32" r="1.2" fill="#60A5FA" />
-      <circle cx="14" cy="27.2" r="1.2" fill="#22D3EE" />
-      <circle cx="14" cy="16.8" r="1.2" fill="#60A5FA" />
+      <circle cx="22" cy="12" r="1.2" fill="#45B8A0" />
+      <circle cx="30" cy="16.8" r="1.2" fill="#A9B2BB" />
+      <circle cx="30" cy="27.2" r="1.2" fill="#45B8A0" />
+      <circle cx="22" cy="32" r="1.2" fill="#A9B2BB" />
+      <circle cx="14" cy="27.2" r="1.2" fill="#45B8A0" />
+      <circle cx="14" cy="16.8" r="1.2" fill="#A9B2BB" />
     </svg>
   );
 }

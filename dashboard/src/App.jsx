@@ -8,6 +8,7 @@ import SettingsModal from "./components/SettingsModal";
 import LegalModal from "./components/LegalModal";
 import ThemeToggle from "./components/ThemeToggle";
 import GitHubAnalysisHero from "./components/GitHubAnalysisHero";
+import RepositoryIntelligenceVisual from "./components/RepositoryIntelligenceVisual";
 import WelcomeToast from "./components/WelcomeToast";
 import CursorWaveEffect from "./components/CursorWaveEffect";
 import Tooltip from "./components/Tooltip";
@@ -873,20 +874,202 @@ function App() {
           onDismiss={() => setWelcomeUser(null)}
         />
 
-        {/* 1. INITIAL STATE BEFORE ANALYSIS: FULL-SIZE IN-FLOW PIPELINE */}
-        {!isFullWidthReportMode && (
-          <div className="standby-pipeline-container">
-            <GitHubAnalysisHero
-              authenticated={authenticated}
-              githubUser={githubUser}
-              profile={profile}
-              analysisStatus={analysisStatus}
-              loading={loading}
-              onLogin={loginWithGitHub}
-              compact={false}
-            />
-          </div>
-        )}
+        {/* 1. TWO-COLUMN HERO SECTION (STANDBY VIEW) */}
+        {!isFullWidthReportMode ? (
+          <section className="landing-hero-two-column" aria-label="AIEE Repository Intelligence Platform">
+            {/* LEFT COLUMN: 3D Repository Intelligence Visualization */}
+            <div className="hero-col-visual">
+              <RepositoryIntelligenceVisual
+                analysisStatus={analysisStatus}
+                loading={loading}
+                authenticated={authenticated}
+              />
+            </div>
+
+            {/* RIGHT COLUMN: Eyebrow, Typography, Input Card, Actions */}
+            <div className="hero-col-content">
+              <div className="hero-eyebrow-badge">
+                <span className="eyebrow-dot" aria-hidden="true"></span>
+                <span className="eyebrow-text">AI-POWERED REPOSITORY INTELLIGENCE</span>
+                <span className="eyebrow-sep" aria-hidden="true">·</span>
+                <span className="eyebrow-tag">v1.0</span>
+              </div>
+
+              <h1 className="landing-hero-headline">
+                Understand Your Code.{" "}
+                <span className="landing-headline-gradient">
+                  See the Impact.
+                </span>
+              </h1>
+
+              <p className="landing-hero-description">
+                Predictive change-impact propagation powered by git commit mining, AST dependency graph topology, and unsupervised ML clustering. Pinpoint risk and blast radiuses before you merge.
+              </p>
+
+              {/* Prominent Repository URL Input Card */}
+              <div className="landing-input-card">
+                <div className="landing-input-header">
+                  <label htmlFor="repository-url-input" className="landing-input-label">
+                    GitHub Repository URL
+                  </label>
+                  <span className="landing-input-helper">
+                    Public repositories or authorized private repos
+                  </span>
+                </div>
+
+                <form
+                  className="landing-input-form"
+                  onSubmit={handleAnalysisSubmit}
+                  role="search"
+                  aria-label="Repository Analysis Form"
+                >
+                  <div className="landing-input-field-wrap">
+                    <span className="landing-field-icon" aria-hidden="true">
+                      <IconGitHub size={18} />
+                    </span>
+
+                    <input
+                      id="repository-url-input"
+                      type="text"
+                      placeholder="https://github.com/owner/repository"
+                      value={repo}
+                      onChange={(e) => setRepo(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAnalysisSubmit(e);
+                        }
+                      }}
+                      disabled={loading}
+                      aria-label="GitHub Repository URL"
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+
+                    {repo && !loading && (
+                      <button
+                        type="button"
+                        className="landing-input-clear-btn"
+                        onClick={() => setRepo("")}
+                        title="Clear input"
+                        aria-label="Clear repository input"
+                      >
+                        <IconX size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="landing-actions-row">
+                    <button
+                      type="submit"
+                      className="landing-analyze-btn"
+                      onClick={handleAnalysisSubmit}
+                      disabled={loading || !repo.trim()}
+                      id="analyze-submit-btn"
+                      title={
+                        !repo.trim()
+                          ? "Enter a GitHub repository URL to analyze"
+                          : "Analyze Repository"
+                      }
+                      aria-label="Analyze Repository"
+                    >
+                      {loading ? (
+                        <>
+                          <span className="spinner"></span>
+                          <span>Analyzing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Analyze Repository</span>
+                          <IconArrowRight size={15} className="btn-arrow" />
+                        </>
+                      )}
+                    </button>
+
+                    <a
+                      href={FEEDBACK_FORM_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="landing-feedback-btn"
+                      id="top-feedback-btn"
+                      title="Share your feedback on AIEE via Google Forms"
+                      aria-label="Share your feedback on AIEE (opens in new tab)"
+                    >
+                      <IconMessageSquare size={14} />
+                      <span>Feedback</span>
+                    </a>
+                  </div>
+                </form>
+
+                {/* GitHub Authentication connection action when authentication is required */}
+                {!authLoading && !authenticated && (
+                  <div className="landing-auth-connection-bar" role="status">
+                    <div className="auth-bar-left">
+                      <span className="auth-bar-icon" aria-hidden="true">
+                        <IconLock size={14} />
+                      </span>
+                      <span className="auth-bar-text">
+                        Login to analyze private repos and access higher GitHub API rate limits.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="landing-auth-login-btn"
+                      onClick={loginWithGitHub}
+                      id="prompt-github-login-btn"
+                      aria-label="Connect GitHub account"
+                    >
+                      <IconGitHub size={13} />
+                      <span>Login with GitHub</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Authenticated session badge */}
+                {!authLoading && authenticated && (
+                  <div className="landing-auth-confirmed-bar">
+                    <span className="auth-confirmed-dot" aria-hidden="true"></span>
+                    <span>
+                      Connected to GitHub as <strong>@{githubUser}</strong>
+                    </span>
+                  </div>
+                )}
+
+                {/* Example Repository Guidance & Sample Chips */}
+                <div className="landing-samples-section">
+                  <div className="samples-label-row">
+                    <span className="samples-label">Try an example repository:</span>
+                    <span className="samples-hint">Auto-fills the URL</span>
+                  </div>
+                  <div
+                    className="samples-chips-wrap"
+                    role="group"
+                    aria-label="Example repositories"
+                  >
+                    {SAMPLE_REPOS.map((sample) => (
+                      <button
+                        key={sample}
+                        type="button"
+                        className={`sample-pill-btn ${
+                          repo.includes(sample) ? "is-active" : ""
+                        }`}
+                        onClick={() => {
+                          setRepo(`https://github.com/${sample}`);
+                          setError("");
+                        }}
+                        disabled={loading}
+                        aria-label={`Use example repository ${sample}`}
+                      >
+                        <IconGitHub size={12} aria-hidden="true" />
+                        <span>{sample}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {/* 2. REPOSITORY ANALYSIS & EXPANDED FULL-WIDTH REPORT AREA */}
         <div
@@ -896,206 +1079,121 @@ function App() {
               : "standby-content-container"
           }
         >
-          {/* REPOSITORY INPUT BAR (FULL STANDBY CARD OR STREAMLINED TOP BAR) */}
-          <section
-            className={`analysis-card ${isFullWidthReportMode ? "analysis-card-compact-bar" : ""
-              }`}
-            aria-labelledby="analysis-heading"
-          >
-            {!isFullWidthReportMode && (
-              <div className="analysis-card-top">
-                <div>
-                  <div className="analysis-label-row">
-                    <h2
-                      id="analysis-heading"
-                      className="analysis-card-title"
-                    >
-                      Repository Analysis
-                    </h2>
-                    <span className="analysis-tag">Core Engine</span>
-                  </div>
-
-                  <p className="analysis-card-desc">
-                    Enter a GitHub repository URL to mine commit diffs
-                    and compute predictive change-impact propagation.
-                  </p>
-                </div>
-
-                <div className="analysis-auth-badge-wrap">
-                  {authenticated ? (
-                    <div
-                      className="auth-status-pill auth-connected"
-                      title="Verified GitHub Session"
-                    >
-                      <span className="auth-status-dot"></span>
-                      <span>
-                        Authenticated as <strong>@{githubUser}</strong>
-                      </span>
-                    </div>
-                  ) : (
-                    <div
-                      className="auth-status-pill auth-required"
-                      title="Login Required"
-                    >
-                      <span className="auth-status-dot-amber"></span>
-                      <span>Authentication Required</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* INPUT AND ACTION FORM */}
-            <form
-              className="input-row"
-              onSubmit={handleAnalysisSubmit}
-              role="search"
-              aria-label="Repository Analysis Form"
+          {/* STREAMLINED TOP BAR FOR FULL-WIDTH REPORT MODE */}
+          {isFullWidthReportMode && (
+            <section
+              className="analysis-card analysis-card-compact-bar"
+              aria-label="Repository Analysis Bar"
             >
-              <div className="input-wrapper">
-                <span className="input-icon" aria-hidden="true">
-                  <IconGitHub size={17} />
-                </span>
-
-                <input
-                  id="repository-url-input"
-                  type="text"
-                  placeholder="https://github.com/username/repository or username/repository"
-                  value={repo}
-                  onChange={(e) => setRepo(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAnalysisSubmit(e);
-                    }
-                  }}
-                  disabled={loading}
-                  aria-label="GitHub Repository URL"
-                  autoComplete="off"
-                  spellCheck="false"
-                />
-
-                {repo && !loading && (
-                  <button
-                    type="button"
-                    className="input-clear-btn"
-                    onClick={() => setRepo("")}
-                    title="Clear input"
-                    aria-label="Clear repository input"
-                  >
-                    <IconX size={14} />
-                  </button>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                className="analyze-button"
-                onClick={handleAnalysisSubmit}
-                disabled={loading || !repo.trim()}
-                id="analyze-submit-btn"
-                title={
-                  !authenticated
-                    ? "Login with GitHub required to run analysis"
-                    : !repo.trim()
-                    ? "Enter a GitHub repository URL to analyze"
-                    : "Analyze Repository"
-                }
-                aria-label="Analyze Repository"
+              <form
+                className="input-row"
+                onSubmit={handleAnalysisSubmit}
+                role="search"
+                aria-label="Repository Analysis Form"
               >
-                {loading ? (
-                  <>
-                    <span className="spinner"></span>
-                    <span>Analyzing...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Analyze Repository</span>
-                    <IconArrowRight size={15} className="btn-arrow" />
-                  </>
-                )}
-              </button>
+                <div className="input-wrapper">
+                  <span className="input-icon" aria-hidden="true">
+                    <IconGitHub size={18} />
+                  </span>
 
-              <a
-                href={FEEDBACK_FORM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="top-feedback-btn"
-                id="top-feedback-btn"
-                title="Share your feedback on AIEE via Google Forms"
-                aria-label="Share your feedback on AIEE (opens in new tab)"
-              >
-                <IconMessageSquare size={15} />
-                <span>Feedback</span>
-              </a>
-            </form>
-
-            {/* EXAMPLE REPOSITORY GUIDANCE & SAMPLES */}
-            <div className="sample-repos-section">
-              <div className="sample-repos-header">
-                <span className="sample-repos-label">Try an example repository:</span>
-                <span className="sample-repos-guidance">
-                  Clicking a sample automatically fills the repository URL input for you to review before analyzing.
-                </span>
-              </div>
-
-              <div
-                className="sample-repos-chips"
-                role="group"
-                aria-label="Example repositories"
-              >
-                {SAMPLE_REPOS.map((sample) => (
-                  <button
-                    key={sample}
-                    type="button"
-                    className={`sample-repo-pill ${repo.includes(sample) ? "is-selected" : ""
-                      }`}
-                    onClick={() => {
-                      setRepo(`https://github.com/${sample}`);
-                      setError("");
+                  <input
+                    id="repository-url-input"
+                    type="text"
+                    placeholder="https://github.com/owner/repository"
+                    value={repo}
+                    onChange={(e) => setRepo(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAnalysisSubmit(e);
+                      }
                     }}
                     disabled={loading}
-                    aria-label={`Use example repository ${sample}`}
-                  >
-                    <IconGitHub size={13} aria-hidden="true" />
-                    <span>{sample}</span>
-                  </button>
-                ))}
-              </div>
+                    aria-label="GitHub Repository URL"
+                    autoComplete="off"
+                    spellCheck="false"
+                  />
 
-              <span className="sample-repos-perm-note">
-                Note: Repositories must be public or accessible under your authorized GitHub permissions.
-              </span>
-            </div>
-
-            {/* LOGIN REQUIRED BANNER */}
-            {!authLoading && !authenticated && (
-              <div className="login-required-banner" role="alert">
-                <div className="login-required-left">
-                  <span className="banner-icon-wrap" aria-hidden="true">
-                    <IconLock size={18} />
-                  </span>
-                  <div>
-                    <strong>GitHub Authentication Required</strong>
-                    <p>
-                      Please connect your GitHub account to authorize
-                      repository inspection, commit history mining,
-                      and ML cluster generation.
-                    </p>
-                  </div>
+                  {repo && !loading && (
+                    <button
+                      type="button"
+                      className="input-clear-btn"
+                      onClick={() => setRepo("")}
+                      title="Clear input"
+                      aria-label="Clear repository input"
+                    >
+                      <IconX size={14} />
+                    </button>
+                  )}
                 </div>
 
                 <button
-                  type="button"
-                  className="btn-login-inline"
-                  onClick={loginWithGitHub}
+                  type="submit"
+                  className="analyze-button"
+                  onClick={handleAnalysisSubmit}
+                  disabled={loading || !repo.trim()}
+                  id="analyze-submit-btn"
+                  title={
+                    !repo.trim()
+                      ? "Enter a GitHub repository URL to analyze"
+                      : "Analyze Repository"
+                  }
+                  aria-label="Analyze Repository"
                 >
-                  <span>Login with GitHub</span>
-                  <IconArrowRight size={14} />
+                  {loading ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>Analyzing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Analyze Repository</span>
+                      <IconArrowRight size={15} className="btn-arrow" />
+                    </>
+                  )}
                 </button>
-              </div>
-            )}
-          </section>
+
+                <a
+                  href={FEEDBACK_FORM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="top-feedback-btn"
+                  id="top-feedback-btn"
+                  title="Share your feedback on AIEE via Google Forms"
+                  aria-label="Share your feedback on AIEE (opens in new tab)"
+                >
+                  <IconMessageSquare size={15} />
+                  <span>Feedback</span>
+                </a>
+
+                <button
+                  type="button"
+                  className="btn-standby-reset"
+                  onClick={resetToStandbyOverview}
+                  title="Return to initial standby overview"
+                  aria-label="Reset to initial standby overview"
+                >
+                  <IconRefresh size={14} />
+                  <span>Overview</span>
+                </button>
+              </form>
+            </section>
+          )}
+
+          {/* 3. COMPACT HORIZONTAL 9-STAGE PIPELINE CHANNEL (BELOW HERO) */}
+          {!isFullWidthReportMode && (
+            <section className="landing-pipeline-section" aria-label="9-Stage Analysis Pipeline">
+              <GitHubAnalysisHero
+                authenticated={authenticated}
+                githubUser={githubUser}
+                profile={profile}
+                analysisStatus={analysisStatus}
+                loading={loading}
+                onLogin={loginWithGitHub}
+                compact={false}
+              />
+            </section>
+          )}
 
           {/* CLEAR ERROR RECOVERY BANNER */}
           {error && (

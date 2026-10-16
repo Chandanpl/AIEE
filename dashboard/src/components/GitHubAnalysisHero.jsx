@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
  * Clean monochrome SVG icons for the 9 AIEE pipeline stages
  * Uniform 24x24 viewBox, 2px stroke, monochrome currentColor.
  */
-function StageIcon({ id, className = "stage-svg-icon" }) {
+export function StageIcon({ id, className = "stage-svg-icon" }) {
   const commonProps = {
     width: 15,
     height: 15,
@@ -20,7 +20,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
 
   switch (id) {
     case "auth":
-      // Minimalist auth / key icon
       return (
         <svg {...commonProps}>
           <path d="M21 2l-2 2m-1.5 1.5L14 9l-1.5-1.5L11 9l-1-1-4 4a5 5 0 1 0 7 7l4-4 1 1 1.5-1.5L18 15l3.5-3.5a2.12 2.12 0 0 0 0-3L21 2z" />
@@ -28,7 +27,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "connection":
-      // Minimalist repository connection / git-branch icon
       return (
         <svg {...commonProps}>
           <line x1="6" y1="3" x2="6" y2="15" />
@@ -38,7 +36,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "history":
-      // Minimalist git commit history icon
       return (
         <svg {...commonProps}>
           <circle cx="12" cy="12" r="4" />
@@ -47,7 +44,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "changes":
-      // Minimalist file diff / change detection icon
       return (
         <svg {...commonProps}>
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -57,7 +53,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "deps":
-      // Minimalist dependency topology graph icon
       return (
         <svg {...commonProps}>
           <circle cx="18" cy="5" r="3" />
@@ -68,7 +63,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "kmeans":
-      // Minimalist clustering partition icon
       return (
         <svg {...commonProps}>
           <circle cx="7" cy="7" r="3" />
@@ -79,7 +73,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "dbscan":
-      // Minimalist spatial density crosshair icon
       return (
         <svg {...commonProps}>
           <circle cx="12" cy="12" r="9" />
@@ -89,7 +82,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "risk":
-      // Minimalist hybrid risk shield icon
       return (
         <svg {...commonProps}>
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -98,7 +90,6 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
         </svg>
       );
     case "report":
-      // Minimalist report / analytics summary icon
       return (
         <svg {...commonProps}>
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -112,105 +103,9 @@ function StageIcon({ id, className = "stage-svg-icon" }) {
 }
 
 /**
- * The 9 official AIEE analysis stages
+ * GitHub Octocat Logo SVG (monochrome)
  */
-const PIPELINE_STAGES = [
-  {
-    id: "auth",
-    number: "01",
-    label: "GitHub Authentication",
-    desc: "OAuth handshake & token verification",
-    svgX: 500,
-    svgY: 80,
-    pctX: 50,
-    pctY: 13,
-  },
-  {
-    id: "connection",
-    number: "02",
-    label: "Repository Connection",
-    desc: "Target repo tree inspection",
-    svgX: 763,
-    svgY: 134,
-    pctX: 76,
-    pctY: 22,
-  },
-  {
-    id: "history",
-    number: "03",
-    label: "Git History Mining",
-    desc: "Extract commit diffs & co-changes",
-    svgX: 903,
-    svgY: 270,
-    pctX: 90,
-    pctY: 44,
-  },
-  {
-    id: "changes",
-    number: "04",
-    label: "Changed File Detection",
-    desc: "Latest commit file modifications",
-    svgX: 855,
-    svgY: 425,
-    pctX: 85,
-    pctY: 68,
-  },
-  {
-    id: "deps",
-    number: "05",
-    label: "Dependency Graph Analysis",
-    desc: "Import & coupling topology",
-    svgX: 640,
-    svgY: 526,
-    pctX: 64,
-    pctY: 85,
-  },
-  {
-    id: "kmeans",
-    number: "06",
-    label: "KMeans Clustering",
-    desc: "Behavioral frequency partitioning",
-    svgX: 360,
-    svgY: 526,
-    pctX: 36,
-    pctY: 85,
-  },
-  {
-    id: "dbscan",
-    number: "07",
-    label: "DBSCAN Clustering",
-    desc: "Density-based propagation groups",
-    svgX: 145,
-    svgY: 425,
-    pctX: 15,
-    pctY: 68,
-  },
-  {
-    id: "risk",
-    number: "08",
-    label: "Hybrid Risk Scoring",
-    desc: "Multi-heuristic risk evaluation",
-    svgX: 97,
-    svgY: 270,
-    pctX: 10,
-    pctY: 44,
-  },
-  {
-    id: "report",
-    number: "09",
-    label: "Impact Report Generation",
-    desc: "Actionable recommendations & rankings",
-    svgX: 237,
-    svgY: 134,
-    pctX: 24,
-    pctY: 22,
-  },
-];
-
-/**
- * GitHub Octocat Logo SVG (Borderless floating emblem)
- */
-export function GitHubIcon({ size = 62, className = "" }) {
+export function GitHubIcon({ size = 18, className = "" }) {
   return (
     <svg
       width={size}
@@ -229,28 +124,121 @@ export function GitHubIcon({ size = 62, className = "" }) {
   );
 }
 
+/**
+ * The 9 official AIEE analysis stages organized by architectural tier
+ */
+const PIPELINE_STAGES = [
+  // Tier 1: Ingestion & Extraction
+  {
+    id: "auth",
+    number: "01",
+    label: "GitHub Authentication",
+    shortLabel: "GitHub Auth",
+    desc: "OAuth handshake & token verification for secure repository access and elevated API rate limits.",
+    tier: "Ingest",
+    tierFull: "Repository Ingestion",
+  },
+  {
+    id: "connection",
+    number: "02",
+    label: "Repository Connection",
+    shortLabel: "Repo Connect",
+    desc: "Target repo tree inspection, branch checkout, commit pointer identification, and metadata extraction.",
+    tier: "Ingest",
+    tierFull: "Repository Ingestion",
+  },
+  {
+    id: "history",
+    number: "03",
+    label: "Git History Mining",
+    shortLabel: "Git Mining",
+    desc: "Extract sequential commit diffs, chronological change frequencies, and historical co-change matrices.",
+    tier: "Ingest",
+    tierFull: "Repository Ingestion",
+  },
+  // Tier 2: Diff Analysis & Topology
+  {
+    id: "changes",
+    number: "04",
+    label: "Changed File Detection",
+    shortLabel: "Diff Detection",
+    desc: "Identify touched files, modified hunks, addition/deletion ratios, and change classifications.",
+    tier: "Analysis",
+    tierFull: "Topology Analysis",
+  },
+  {
+    id: "deps",
+    number: "05",
+    label: "Dependency Graph Analysis",
+    shortLabel: "Graph Topology",
+    desc: "Build abstract syntax tree import couplings and directional graph dependency hierarchies.",
+    tier: "Analysis",
+    tierFull: "Topology Analysis",
+  },
+  {
+    id: "kmeans",
+    number: "06",
+    label: "KMeans Clustering",
+    shortLabel: "KMeans ML",
+    desc: "Partition code assets into behavioral change frequency clusters via unsupervised vector clustering.",
+    tier: "Analysis",
+    tierFull: "Topology Analysis",
+  },
+  // Tier 3: Density Inference & Synthesis
+  {
+    id: "dbscan",
+    number: "07",
+    label: "DBSCAN Clustering",
+    shortLabel: "DBSCAN Cluster",
+    desc: "Density-based spatial clustering to isolate change propagation neighborhoods and identify noise/outliers.",
+    tier: "Inference",
+    tierFull: "Risk Inference",
+  },
+  {
+    id: "risk",
+    number: "08",
+    label: "Hybrid Risk Scoring",
+    shortLabel: "Risk Scoring",
+    desc: "Synthesize graph centrality, cluster density, and historical blast radius into weighted risk scores.",
+    tier: "Inference",
+    tierFull: "Risk Inference",
+  },
+  {
+    id: "report",
+    number: "09",
+    label: "Impact Report Generation",
+    shortLabel: "Impact Report",
+    desc: "Compile actionable mitigation checklists, risk rankings, and exportable change-impact summaries.",
+    tier: "Inference",
+    tierFull: "Risk Inference",
+  },
+];
+
 export default function GitHubAnalysisHero({
   authenticated = false,
-  githubUser = "",
-  profile = {},
+  _githubUser = "",
+  _profile = {},
   analysisStatus = "idle", // "idle" | "analyzing" | "completed" | "error"
   loading = false,
-  onLogin,
+  _onLogin,
   compact = false,
 }) {
   const [activeStageIndex, setActiveStageIndex] = useState(0);
-  const [hoveredStage, setHoveredStage] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [inspectedStage, setInspectedStage] = useState(null);
 
-  // Cycling highlight for pipeline representation
+  // Cycling highlight for pipeline demonstration with hover pause support
   useEffect(() => {
-    const intervalTime = loading || analysisStatus === "analyzing" ? 450 : 1400;
+    if (isPaused) return;
+
+    const intervalTime = loading || analysisStatus === "analyzing" ? 500 : 2400;
 
     const interval = setInterval(() => {
       setActiveStageIndex((prev) => (prev + 1) % PIPELINE_STAGES.length);
     }, intervalTime);
 
     return () => clearInterval(interval);
-  }, [loading, analysisStatus]);
+  }, [loading, analysisStatus, isPaused]);
 
   // Status badge config
   const getHubStatus = () => {
@@ -264,7 +252,7 @@ export default function GitHubAnalysisHero({
     if (loading || analysisStatus === "analyzing") {
       return {
         tag: "Mining Pipeline Active",
-        dotClass: "dot-pulse-blue",
+        dotClass: "dot-pulse-teal",
         labelClass: "hub-status-analyzing",
       };
     }
@@ -284,346 +272,158 @@ export default function GitHubAnalysisHero({
     }
     return {
       tag: "Engine Ready · Standby",
-      dotClass: "dot-cyan",
+      dotClass: "dot-teal",
       labelClass: "hub-status-ready",
     };
   };
 
   const hubStatus = getHubStatus();
+  const currentStage = PIPELINE_STAGES[activeStageIndex];
+
+  const handleStageClick = (stage) => {
+    if (inspectedStage?.id === stage.id) {
+      setInspectedStage(null);
+    } else {
+      setInspectedStage(stage);
+      setActiveStageIndex(PIPELINE_STAGES.findIndex((s) => s.id === stage.id));
+    }
+  };
 
   return (
-    <section
-      className={`github-analysis-hero ${
-        compact ? "hero-compact-mode" : ""
-      } ${loading || analysisStatus === "analyzing" ? "is-analyzing" : ""} ${
-        analysisStatus === "completed" ? "is-completed" : ""
-      }`}
-      aria-labelledby="pipeline-hero-title"
+    <div
+      className={`pipeline-channel-section ${compact ? "channel-compact-mode" : ""} ${
+        loading || analysisStatus === "analyzing" ? "is-analyzing" : ""
+      } ${analysisStatus === "completed" ? "is-completed" : ""}`}
+      aria-label="GitHub Repository Analysis Pipeline Channel"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
     >
-      {/* HEADER BAR */}
-      <div className="hero-top-strip">
-        <div className="hero-eyebrow-wrap">
-          <span className="hero-circuit-dot" aria-hidden="true"></span>
-          <span className="hero-eyebrow-text">
-            {compact ? "9-Stage Orbital Pipeline" : "AIEE Architecture · 9-Stage Repository Intelligence"}
+      {/* 1. CHANNEL COMPACT STATUS STRIP */}
+      <div className="channel-meta-strip">
+        <div className="channel-meta-left">
+          <span className="channel-pulse-dot" aria-hidden="true"></span>
+          <span className="channel-tag">9-STAGE REPOSITORY INTELLIGENCE CHANNEL</span>
+          <span className="channel-meta-sep" aria-hidden="true">/</span>
+          <span className="channel-active-indicator">
+            Active: <strong>{currentStage.number}</strong> {currentStage.shortLabel}
           </span>
         </div>
 
-        <div className="hero-top-status">
-          <span
-            className={`hero-status-pill ${
-              authenticated ? "pill-connected" : "pill-pending"
-            }`}
-          >
-            <span
-              className={`status-indicator-dot ${hubStatus.dotClass}`}
-            ></span>
-            <span>{hubStatus.tag}</span>
+        <div className="channel-meta-right">
+          <span className="channel-hint-text">
+            {isPaused ? "Hover paused · Click stage to inspect" : "Live sequence · Hover to pause"}
           </span>
+          <div className={`channel-status-pill ${hubStatus.labelClass}`}>
+            <span className={`status-indicator-dot ${hubStatus.dotClass}`} aria-hidden="true"></span>
+            <span>{hubStatus.tag}</span>
+          </div>
         </div>
       </div>
 
-      <h1 id="pipeline-hero-title" className="sr-only">
-        AI-Evolution-Engine GitHub Repository Analysis Pipeline
-      </h1>
-
-      {/* ORBITAL CANVAS CONTAINER */}
-      <div className="orbital-canvas-wrap">
-        {/* DYNAMIC FLOATING AIEE TITLE (WATERMARK AMBIENT ANIMATION) */}
-        <div className="floating-aiee-title-wrap" aria-hidden="true">
-          <span className="floating-aiee-title">AI-Evolution-Engine</span>
-        </div>
-
-        {/* SVG DATA FLOW & ORBIT LAYER */}
-        <svg
-          className="orbital-svg-layer"
-          viewBox="0 0 1000 620"
-          preserveAspectRatio="xMidYMid meet"
-          aria-hidden="true"
-        >
-          <defs>
-            {/* Glow gradient for radial hub */}
-            <radialGradient
-              id="heroHubGlow"
-              cx="50%"
-              cy="50%"
-              r="50%"
-              fx="50%"
-              fy="50%"
-            >
-              <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.28" />
-              <stop offset="50%" stopColor="#60A5FA" stopOpacity="0.1" />
-              <stop offset="100%" stopColor="#081423" stopOpacity="0" />
-            </radialGradient>
-
-            {/* Radiant ray stroke gradient */}
-            <linearGradient
-              id="heroRayGrad"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
-            >
-              <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.6" />
-              <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.1" />
-            </linearGradient>
-
-            <linearGradient
-              id="activeRayGrad"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
-            >
-              <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.9" />
-              <stop offset="50%" stopColor="#60A5FA" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.3" />
-            </linearGradient>
-
-            {/* Filter for particle glow */}
-            <filter
-              id="particleGlow"
-              x="-30%"
-              y="-30%"
-              width="160%"
-              height="160%"
-            >
-              <feGaussianBlur stdDeviation="2.5" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
-
-          {/* Center ambient glow sphere */}
-          <circle
-            cx="500"
-            cy="310"
-            r="190"
-            fill="url(#heroHubGlow)"
-            className="hub-ambient-glow"
-          />
-
-          {/* Outer Orbital Ellipse Track */}
-          <ellipse
-            cx="500"
-            cy="310"
-            rx="410"
-            ry="230"
-            className="orbit-ellipse outer-orbit"
-          />
-
-          {/* Inner Orbital Ellipse Track */}
-          <ellipse
-            cx="500"
-            cy="310"
-            rx="290"
-            ry="160"
-            className="orbit-ellipse inner-orbit"
-          />
-
-          {/* Sequential Perimeter Polygon connecting stages */}
-          <polygon
-            points={PIPELINE_STAGES.map((s) => `${s.svgX},${s.svgY}`).join(
-              " "
-            )}
-            className="orbit-perimeter-poly"
-          />
-
-          {/* Connecting Ray Lines from Center (500, 310) to each Stage Node */}
-          {PIPELINE_STAGES.map((stage, idx) => {
-            const isActive =
-              analysisStatus === "completed" ||
-              idx === activeStageIndex ||
-              hoveredStage === stage.id;
-            const isAnalyzing =
-              loading || analysisStatus === "analyzing";
-
-            return (
-              <g key={`ray-${stage.id}`} className="stage-ray-group">
-                <line
-                  x1="500"
-                  y1="310"
-                  x2={stage.svgX}
-                  y2={stage.svgY}
-                  className={`stage-ray-line ${
-                    isActive ? "ray-active" : ""
-                  } ${isAnalyzing ? "ray-pulsing" : ""}`}
-                  stroke={
-                    isActive ? "url(#activeRayGrad)" : "url(#heroRayGrad)"
-                  }
-                />
-
-                {/* Data Flow Particle along ray */}
-                <circle
-                  cx={
-                    500 +
-                    (stage.svgX - 500) *
-                      (isActive
-                        ? 0.72
-                        : ((idx * 0.11 + activeStageIndex * 0.08) % 1))
-                  }
-                  cy={
-                    310 +
-                    (stage.svgY - 310) *
-                      (isActive
-                        ? 0.72
-                        : ((idx * 0.11 + activeStageIndex * 0.08) % 1))
-                  }
-                  r={isActive ? 3.5 : 2}
-                  className={`flow-particle ${
-                    isActive ? "particle-active" : ""
-                  }`}
-                  filter="url(#particleGlow)"
-                />
-              </g>
-            );
-          })}
-        </svg>
-
-        {/* CENTRAL GITHUB ENGINE (BOX & BORDERLESS FLOATING HUB) */}
-        <div
-          className={`github-central-hub ${
-            !authenticated ? "hub-unauthenticated" : ""
-          } ${
-            loading || analysisStatus === "analyzing"
-              ? "hub-analyzing"
-              : ""
-          } ${analysisStatus === "completed" ? "hub-completed" : ""}`}
-        >
-          {/* Subtle decorative orbital rings & ambient light behind the logo */}
-          <div className="hub-orbital-ring ring-outer" aria-hidden="true"></div>
-          <div className="hub-orbital-ring ring-mid" aria-hidden="true"></div>
-          <div className="hub-orbital-ring ring-inner" aria-hidden="true"></div>
-          <div className="hub-core-ambient-light" aria-hidden="true"></div>
-
-          {/* Floating GitHub Logo directly on the animated background */}
-          <div className="hub-floating-logo-wrap">
-            <GitHubIcon
-              size={compact ? 42 : 62}
-              className="hub-github-svg"
-            />
-          </div>
-
-          {/* Distinct separate engine status label beneath the logo */}
-          <div className="hub-status-container">
-            <span className="hub-brand-name">GitHub Engine</span>
-            <div className={`hub-state-badge ${hubStatus.labelClass}`}>
-              <span
-                className={`hub-state-dot ${hubStatus.dotClass}`}
-                aria-hidden="true"
-              ></span>
-              <span className="hub-state-text">{hubStatus.tag}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 9 FLOATING STAGE LABELS (GLASSMORPHISM CARDS WITH ZERO EMOJIS) */}
-        <div
-          className="pipeline-stages-container"
-          role="region"
-          aria-label="AIEE 9 Pipeline Stages"
-        >
+      {/* 2. HORIZONTAL CONNECTED CHANNEL TRACK */}
+      <div className="channel-track-wrapper">
+        <div className="channel-scroll-track" role="list">
           {PIPELINE_STAGES.map((stage, idx) => {
             const isCurrent = idx === activeStageIndex;
-            const isCompleted = analysisStatus === "completed";
+            const isCompleted =
+              analysisStatus === "completed" ||
+              (analysisStatus === "analyzing" && idx < activeStageIndex);
             const isAnalyzing =
-              loading || analysisStatus === "analyzing";
-            const isHighlighted = isCurrent || isCompleted;
+              (loading || analysisStatus === "analyzing") && isCurrent;
+            const isInspected = inspectedStage?.id === stage.id;
 
             return (
-              <div
-                key={stage.id}
-                className={`pipeline-stage-node stage-node-${stage.id} ${
-                  isHighlighted ? "stage-highlighted" : ""
-                } ${isAnalyzing ? "stage-analyzing" : ""} ${
-                  isCompleted ? "stage-completed" : ""
-                }`}
-                style={{
-                  left: `${stage.pctX}%`,
-                  top: `${stage.pctY}%`,
-                  animationDelay: `${idx * 0.35}s`,
-                }}
-                onMouseEnter={() => setHoveredStage(stage.id)}
-                onMouseLeave={() => setHoveredStage(null)}
-                tabIndex={0}
-                role="article"
-                aria-label={`Stage ${stage.number}: ${stage.label}`}
-              >
-                <div className="stage-card-inner">
-                  <div className="stage-card-header">
-                    <span className="stage-num-badge">
-                      {stage.number}
-                    </span>
-                    <span className="stage-icon-indicator" aria-hidden="true">
-                      <StageIcon id={stage.id} />
+              <React.Fragment key={stage.id}>
+                {/* STAGE CARD */}
+                <div
+                  className={`channel-stage-card ${isCurrent ? "is-active" : ""} ${
+                    isCompleted ? "is-completed" : ""
+                  } ${isAnalyzing ? "is-processing" : ""} ${
+                    isInspected ? "is-inspected" : ""
+                  }`}
+                  onClick={() => handleStageClick(stage)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleStageClick(stage);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="listitem"
+                  aria-label={`Stage ${stage.number}: ${stage.label}`}
+                  title={`${stage.label} (${stage.tier}): Click to inspect`}
+                >
+                  <div className="stage-card-top">
+                    <span className="stage-card-number">{stage.number}</span>
+                    <span className={`stage-card-tier tier-${stage.tier.toLowerCase()}`}>
+                      {stage.tier}
                     </span>
                   </div>
 
-                  <div className="stage-card-body">
-                    <strong className="stage-title">
-                      {stage.label}
-                    </strong>
-                    <span className="stage-desc">{stage.desc}</span>
+                  <div className="stage-card-icon-wrap" aria-hidden="true">
+                    <StageIcon id={stage.id} />
                   </div>
 
-                  {/* Micro indicator glow bar */}
-                  <div className="stage-progress-bar" aria-hidden="true">
-                    <div className="stage-progress-fill"></div>
+                  <div className="stage-card-name" title={stage.label}>
+                    {stage.shortLabel}
                   </div>
+
+                  <div className="stage-card-footer">
+                    <span className="stage-card-dot" aria-hidden="true"></span>
+                    <span className="stage-card-status-text">
+                      {isCompleted ? "Done" : isCurrent ? "Active" : "Standby"}
+                    </span>
+                  </div>
+
+                  {/* Tactile Edge Highlight */}
+                  <div className="stage-card-rim-highlight" aria-hidden="true"></div>
                 </div>
-              </div>
+
+                {/* HORIZONTAL CONDUIT LINE BETWEEN STAGES */}
+                {idx < PIPELINE_STAGES.length - 1 && (
+                  <div
+                    className={`channel-conduit ${
+                      idx < activeStageIndex || isCompleted ? "conduit-passed" : ""
+                    } ${idx === activeStageIndex ? "conduit-current" : ""}`}
+                    aria-hidden="true"
+                  >
+                    <div className="channel-conduit-line">
+                      <div className="channel-conduit-light-packet"></div>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </div>
       </div>
 
-      {/* BEFORE LOGIN: CALL TO ACTION BANNER */}
-      {!authenticated && (
-        <div className="hero-unauth-cta" role="region" aria-label="Connect GitHub">
-          <div className="hero-unauth-cta-left">
-            <span className="cta-icon" aria-hidden="true">
-              <GitHubIcon size={26} />
-            </span>
-            <div>
-              <h2 className="cta-title">Connect GitHub to Get Started</h2>
-              <p className="cta-desc">
-                Authorize AIEE to inspect repository commit diffs, dependency
-                trees, and predictive ML cluster propagation.
-              </p>
+      {/* 3. INSPECTED STAGE DETAILS BAR (EXPANDS ON CLICK) */}
+      {inspectedStage && (
+        <div className="channel-inspector-bar" role="region" aria-label="Stage Inspection Details">
+          <div className="inspector-content">
+            <div className="inspector-badge-row">
+              <span className="inspector-stage-num">{inspectedStage.number}</span>
+              <strong className="inspector-stage-title">{inspectedStage.label}</strong>
+              <span className="inspector-tier-tag">{inspectedStage.tierFull}</span>
             </div>
+            <p className="inspector-desc">{inspectedStage.desc}</p>
           </div>
-
           <button
             type="button"
-            className="btn-hero-login"
-            onClick={onLogin}
-            id="hero-github-login-btn"
+            className="inspector-close-btn"
+            onClick={() => setInspectedStage(null)}
+            aria-label="Close stage inspection details"
+            title="Close details"
           >
-            <GitHubIcon size={18} />
-            <span>Login with GitHub</span>
-            <span className="cta-arrow" aria-hidden="true">→</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Close</span>
           </button>
         </div>
       )}
-
-      {/* AUTHENTICATED: COMPACT PIPELINE SUMMARY STRIP */}
-      {authenticated && (
-        <div className="hero-auth-summary">
-          <div className="auth-user-greeting">
-            <span className="auth-greeting-dot" aria-hidden="true"></span>
-            <span>
-              Pipeline connected for{" "}
-              <strong>{profile?.displayName || (githubUser ? `@${githubUser}` : "Developer")}</strong>
-            </span>
-          </div>
-
-          <div className="pipeline-engines-row">
-            <span className="engine-chip">Git History</span>
-            <span className="engine-chip">Dependency Matrix</span>
-            <span className="engine-chip">KMeans &amp; DBSCAN</span>
-            <span className="engine-chip">Hybrid Risk Scoring</span>
-          </div>
-        </div>
-      )}
-    </section>
+    </div>
   );
 }
